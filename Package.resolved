@@ -1,0 +1,61 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "AnyCodable",
+        "repositoryURL": "https://github.com/Flight-School/AnyCodable",
+        "state": {
+          "branch": null,
+          "revision": "b1a7a8a6186f2fcb28f7bda67cfc545de48b3c80",
+          "version": "0.6.2"
+        }
+      },
+      {
+        "package": "JSONRPC",
+        "repositoryURL": "https://github.com/ChimeHQ/JSONRPC",
+        "state": {
+          "branch": null,
+          "revision": "c593da32092ab5945524fbe0602f8beff647f290",
+          "version": "0.2.1"
+        }
+      },
+      {
+        "package": "LanguageServerProtocol",
+        "repositoryURL": "https://github.com/ChimeHQ/LanguageServerProtocol",
+        "state": {
+          "branch": null,
+          "revision": "1fd2b1d7d06cac81c8ae8f7bfd6053f1d03c7fe4",
+          "version": "0.1.2"
+        }
+      },
+      {
+        "package": "NullCodable",
+        "repositoryURL": "https://github.com/g-mark/NullCodable",
+        "state": {
+          "branch": null,
+          "revision": "dcdda8a5b079827f65e283ab7c29d5caae4caf89",
+          "version": "1.1.0"
+        }
+      },
+      {
+        "package": "OperationPlus",
+        "repositoryURL": "https://github.com/ChimeHQ/OperationPlus",
+        "state": {
+          "branch": null,
+          "revision": "f5d2899e113943d7ea8f73462639217acc6b92b9",
+          "version": "1.5.4"
+        }
+      },
+      {
+        "package": "SwiftLSPClient",
+        "repositoryURL": "https://github.com/ChimeHQ/SwiftLSPClient",
+        "state": {
+          "branch": null,
+          "revision": "c5ea0613ee55bf642aca78b2de376d9f798930cb",
+          "version": "0.9.1"
+        }
+      }
+    ]
+  },
+  "version": 1
+}
