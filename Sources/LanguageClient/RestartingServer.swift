@@ -43,6 +43,17 @@ public class RestartingServer {
         }
     }
 
+    public func getCapabilities(_ block: @escaping (ServerCapabilities?) -> Void) {
+        queue.addOperation {
+            switch self.state {
+            case .running(let initServer):
+                initServer.getCapabilities(block)
+            case .notStarted, .shuttingDown, .stopped:
+                block(nil)
+            }
+        }
+    }
+
     public func shutdownAndExit(block: @escaping (ServerError?) -> Void) {
         queue.addOperation {
             guard case .running(let server) = self.state else {

@@ -54,6 +54,14 @@ public class InitializingServer {
 
         wrappedServer.requestHandler = { [unowned self] in self.handleRequest($0, completionHandler: $1) }
     }
+
+    public func getCapabilities(_ block: @escaping (ServerCapabilities?) -> Void) {
+        queue.addOperation {
+            let caps = self.state.capabilities
+
+            block(caps)
+        }
+    }
 }
 
 extension InitializingServer {
