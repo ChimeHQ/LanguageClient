@@ -9,6 +9,8 @@ import os.log
 public enum RestartingServerError: Error {
     case noProvider
     case serverStopped
+    case noURIMatch(DocumentUri)
+    case noTextDocumentForURI(DocumentUri)
 }
 
 public class RestartingServer {
