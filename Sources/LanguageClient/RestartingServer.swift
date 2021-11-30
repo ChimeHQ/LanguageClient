@@ -170,9 +170,9 @@ public class RestartingServer {
         let op = AsyncBlockProducerOperation<Result<InitializingServer, Error>> { opBlock in
             switch self.state {
             case .notStarted:
-                self.startNewServerAndAdjustState(reopenDocs: false, completionHandler: block)
+                self.startNewServerAndAdjustState(reopenDocs: false, completionHandler: opBlock)
             case .restartNeeded:
-                self.startNewServerAndAdjustState(reopenDocs: true, completionHandler: block)
+                self.startNewServerAndAdjustState(reopenDocs: true, completionHandler: opBlock)
             case .running(let server):
                 opBlock(.success(server))
             case .stopped, .shuttingDown:
