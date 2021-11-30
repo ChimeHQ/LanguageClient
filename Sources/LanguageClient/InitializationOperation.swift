@@ -4,37 +4,32 @@ import SwiftLSPClient
 import LanguageServerProtocol
 
 class InitializationOperation: AsyncProducerOperation<Result<InitializationResponse, ServerError>> {
-    typealias StartupState = InitializingServer.StartupState
-    typealias StartupStateProvider = InitializingServer.StartupStateProvider
+    typealias InitializeParamsProvider = InitializingServer.InitializeParamsProvider
 
-    let startupStateProvider: StartupStateProvider
+    let initializeParamsProvider: InitializeParamsProvider
     let server: Server
 
-    init(server: Server,
-         stateProvider: @escaping StartupStateProvider) {
+    init(server: Server, initializeParamsProvider: @escaping InitializeParamsProvider) {
         self.server = server
-        self.startupStateProvider = stateProvider
+        self.initializeParamsProvider = initializeParamsProvider
     }
 
     override func main() {
-        getStartupState({ (state) in
-            let docs = state.openDocuments
-            let params = state.params
-
+        getInitializeParams({ (params) in
             self.server.initialize(params: params) { result in
                 switch result {
                 case .failure(let error):
                     self.finish(with: .failure(error))
                 case .success(let response):
-                    self.sendInitNotification(response: response, initialDocs: docs)
+                    self.sendInitNotification(response: response)
                 }
             }
         })
 
     }
 
-    private func getStartupState(_ block: @escaping (StartupState) -> Void) {
-        startupStateProvider({ (result) in
+    private func getInitializeParams(_ block: @escaping (InitializeParams) -> Void) {
+        initializeParamsProvider({ (result) in
             switch result {
             case .failure(let error):
                 self.finish(with: .failure(.clientDataUnavailable(error)))
@@ -44,35 +39,14 @@ class InitializationOperation: AsyncProducerOperation<Result<InitializationRespo
         })
     }
 
-    private func sendInitNotification(response: InitializationResponse, initialDocs: [TextDocumentItem]) {
+    private func sendInitNotification(response: InitializationResponse) {
         server.initialized(params: InitializedParams()) { error in
             if let error = error {
                 self.finish(with: .failure(error))
                 return
             }
 
-            self.sendDocumentOpenRequests(initialDocs, initResponse: response)
-        }
-    }
-
-    func sendDocumentOpenRequests(_ items: [TextDocumentItem], initResponse: InitializationResponse) {
-        guard let item = items.first else {
-            self.finish(with: .success(initResponse))
-            return
-        }
-
-        let remainingItems = Array(items.dropFirst())
-
-        let params = DidOpenTextDocumentParams(textDocument: item)
-
-        server.didOpenTextDocument(params: params) { error in
-            if let error = error {
-                self.finish(with: .failure(error))
-                return
-            }
-
-            // keep going, recursively
-            self.sendDocumentOpenRequests(remainingItems, initResponse: initResponse)
+            self.finish(with: .success(response))
         }
     }
 }

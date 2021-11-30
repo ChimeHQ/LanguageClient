@@ -9,17 +9,7 @@ public enum InitializingServerError: Error {
 }
 
 public class InitializingServer {
-    public struct StartupState {
-        public var params: InitializeParams
-        public var openDocuments: [TextDocumentItem]
-
-        public init(params: InitializeParams, openDocuments: [TextDocumentItem]) {
-            self.params = params
-            self.openDocuments = openDocuments
-        }
-    }
-
-    public typealias StartupStateProvider = ((@escaping (Result<StartupState, Error>) -> Void) -> Void)
+    public typealias InitializeParamsProvider = ((@escaping (Result<InitializeParams, Error>) -> Void) -> Void)
     public typealias ServerCapabilitiesChangedHandler = (ServerCapabilities) -> Void
 
     enum State {
@@ -42,7 +32,7 @@ public class InitializingServer {
     private var state: State
     private let queue: OperationQueue
     private var openDocuments: [DocumentUri]
-    public var startupStateProvider: StartupStateProvider?
+    public var initializeParamsProvider: InitializeParamsProvider
     public var serverCapabilitiesChangedHandler: ServerCapabilitiesChangedHandler?
     public var defaultTimeout: TimeInterval = 10.0
 
@@ -51,6 +41,8 @@ public class InitializingServer {
         self.wrappedServer = server
         self.openDocuments = []
         self.queue = OperationQueue.serialQueue(named: "com.chimehq.InitializingServer")
+
+        self.initializeParamsProvider = { block in block(.failure(InitializingServerError.noStateProvider)) }
 
         wrappedServer.requestHandler = { [unowned self] in self.handleRequest($0, completionHandler: $1) }
     }
@@ -66,12 +58,7 @@ public class InitializingServer {
 
 extension InitializingServer {
     private func makeInitializationOperation() -> Operation {
-        let provider = startupStateProvider ?? { block in
-            block(.failure(InitializingServerError.noStateProvider))
-        }
-
-        let initOp = InitializationOperation(server: wrappedServer,
-                                             stateProvider: provider)
+        let initOp = InitializationOperation(server: wrappedServer, initializeParamsProvider: initializeParamsProvider)
 
         initOp.resultCompletionBlock = { result in
             // verify we are in the right state here

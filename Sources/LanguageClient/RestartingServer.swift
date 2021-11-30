@@ -4,42 +4,61 @@ import OperationPlus
 import JSONRPC
 import AnyCodable
 import SwiftLSPClient
+import os.log
+
+public enum RestartingServerError: Error {
+    case noProvider
+    case serverStopped
+}
 
 public class RestartingServer {
     public typealias ExecutionParamsProvider = (@escaping (Result<Process.ExecutionParameters, Error>) -> Void) -> Void
-
+    public typealias TextDocumentItemProvider = ((DocumentUri, @escaping (Result<TextDocumentItem, Error>) -> Void) -> Void)
+    public typealias InitializeParamsProvider = InitializingServer.InitializeParamsProvider
+    public typealias ServerCapabilitiesChangedHandler = InitializingServer.ServerCapabilitiesChangedHandler
+    
     enum State {
         case notStarted
+        case restartNeeded
         case running(InitializingServer)
         case shuttingDown
         case stopped(Date)
     }
 
     private var state: State
+    private var openDocumentURIs: Set<DocumentUri>
     private let queue: OperationQueue
+    private let log: OSLog
 
     public var requestHandler: RequestHandler?
     public var notificationHandler: NotificationHandler?
     public var executionParamsProvider: ExecutionParamsProvider
-    public var startupStateProvider: InitializingServer.StartupStateProvider
-    public var serverCapabilitiesChangedHandler: InitializingServer.ServerCapabilitiesChangedHandler?
+    public var initializeParamsProvider: InitializeParamsProvider
+    public var textDocumentItemProvider: TextDocumentItemProvider
+    public var serverCapabilitiesChangedHandler: ServerCapabilitiesChangedHandler?
 
     public var logMessages: Bool = false
 
     public init(executionParameters: Process.ExecutionParameters? = nil) {
         self.state = .notStarted
-        self.queue = OperationQueue.serialQueue(named: "com.chimehq.RestartingServer")
+        self.openDocumentURIs = Set()
+        self.queue = OperationQueue.serialQueue(named: "com.chimehq.LanguageClient-RestartingServer")
+        self.log = OSLog(subsystem: "com.chimehq.LanguageClient", category: "RestartingServer")
 
         self.executionParamsProvider = { block in
             if let params = executionParameters {
                 block(.success(params))
             } else {
-                block(.failure(NSError(domain: "blah", code: 1)))
+                block(.failure(RestartingServerError.noProvider))
             }
         }
 
-        self.startupStateProvider = { block in
-            block(.failure(ServerError.handlerUnavailable("Startup State")))
+        self.initializeParamsProvider = { block in
+            block(.failure(RestartingServerError.noProvider))
+        }
+
+        self.textDocumentItemProvider = { _, block in
+            block(.failure(RestartingServerError.noProvider))
         }
     }
 
@@ -48,7 +67,7 @@ public class RestartingServer {
             switch self.state {
             case .running(let initServer):
                 initServer.getCapabilities(block)
-            case .notStarted, .shuttingDown, .stopped:
+            case .notStarted, .shuttingDown, .stopped, .restartNeeded:
                 block(nil)
             }
         }
@@ -70,28 +89,34 @@ public class RestartingServer {
             op.resultCompletionBlock = block
         }
     }
-    
-    private func startServerIfNeeded(block: @escaping (Result<Server, Error>) -> Void) {
-        let op = AsyncBlockProducerOperation<Result<Server, Error>> { opBlock in
-            switch self.state {
-            case .notStarted:
-                self.startNewServer { result in
-                    if case .success(let server) = result {
-                        self.state = .running(server)
+
+    private func reopenDocuments(for server: Server, completionHandler: @escaping () -> Void) {
+        let group = DispatchGroup()
+
+        for uri in self.openDocumentURIs {
+            group.enter()
+
+            os_log("Trying to reopen document %{public}@", log: self.log, type: .info, uri)
+
+            textDocumentItemProvider(uri, { result in
+                switch result {
+                case .failure:
+                    break
+                case .success(let item):
+                    let params = DidOpenTextDocumentParams(textDocument: item)
+
+                    server.didOpenTextDocument(params: params) { error in
+                        if let error = error {
+                            os_log("Failed to reopen document %{public}@: %{public}@", log: self.log, type: .error, uri, error.localizedDescription)
+                        }
                     }
 
-                    opBlock(result.map({ $0 as Server }))
+                    group.leave()
                 }
-            case .running(let server):
-                opBlock(.success(server))
-            case .stopped, .shuttingDown:
-                opBlock(.failure(ServerError.serverUnavailable))
-            }
+            })
         }
 
-        op.resultCompletionBlock = block
-
-        queue.addOperation(op)
+        group.notify(queue: .global(), execute: completionHandler)
     }
 
     private func makeNewServer(with params: Process.ExecutionParameters) -> InitializingServer {
@@ -105,7 +130,7 @@ public class RestartingServer {
 
         initServer.notificationHandler = { [unowned self] in self.handleNotification($0, completionHandler: $1) }
         initServer.requestHandler = { [unowned self] in self.handleRequest($0, completionHandler: $1) }
-        initServer.startupStateProvider = { [unowned self] in self.startupStateProvider($0) }
+        initServer.initializeParamsProvider = { [unowned self] in self.initializeParamsProvider($0) }
         initServer.serverCapabilitiesChangedHandler = { [unowned self] in self.serverCapabilitiesChangedHandler?($0) }
 
         return initServer
@@ -119,8 +144,48 @@ public class RestartingServer {
         })
     }
 
+    private func startNewServerAndAdjustState(reopenDocs: Bool, completionHandler: @escaping (Result<InitializingServer, Error>) -> Void) {
+        startNewServer { result in
+            switch result {
+            case .failure(let error):
+                completionHandler(.failure(error))
+            case .success(let server):
+                self.state = .running(server)
+
+                guard reopenDocs else {
+                    completionHandler(.success(server))
+                    return
+                }
+
+                self.reopenDocuments(for: server) {
+                    completionHandler(.success(server))
+                }
+            }
+        }
+    }
+
+    private func startServerIfNeeded(block: @escaping (Result<InitializingServer, Error>) -> Void) {
+        let op = AsyncBlockProducerOperation<Result<InitializingServer, Error>> { opBlock in
+            switch self.state {
+            case .notStarted:
+                self.startNewServerAndAdjustState(reopenDocs: false, completionHandler: block)
+            case .restartNeeded:
+                self.startNewServerAndAdjustState(reopenDocs: true, completionHandler: block)
+            case .running(let server):
+                opBlock(.success(server))
+            case .stopped, .shuttingDown:
+                opBlock(.failure(RestartingServerError.serverStopped))
+            }
+        }
+
+        op.resultCompletionBlock = block
+
+        queue.addOperation(op)
+    }
+
     private func serverBecameUnavailable() {
-        print("server became unavailable")
+        os_log("Server became unavailable", log: self.log, type: .info)
+
         let date = Date()
 
         queue.addOperation {
@@ -128,12 +193,39 @@ public class RestartingServer {
 
             self.queue.addOperation(afterDelay: 5.0) {
                 guard case .stopped = self.state else {
-                    print("state change during restart")
+                    os_log("State change during restart", log: self.log, type: .error)
                     return
                 }
 
                 self.state = .notStarted
             }
+        }
+    }
+
+    private func handleDidOpen(_ params: DidOpenTextDocumentParams) {
+        let uri = params.textDocument.uri
+
+        assert(openDocumentURIs.contains(uri) == false)
+
+        self.openDocumentURIs.insert(uri)
+    }
+
+    private func handleDidClose(_ params: DidCloseTextDocumentParams) {
+        let uri = params.textDocument.uri
+
+        assert(openDocumentURIs.contains(uri))
+
+        openDocumentURIs.remove(uri)
+    }
+
+    private func processOutboundNotification(_ notification: ClientNotification) {
+        switch notification {
+        case .didOpenTextDocument(let params):
+            self.handleDidOpen(params)
+        case .didCloseTextDocument(let params):
+            self.handleDidClose(params)
+        default:
+            break
         }
     }
 
@@ -165,10 +257,13 @@ extension RestartingServer: Server {
         startServerIfNeeded { result in
             switch result {
             case .failure(let error):
-                print("unable to get server: \(error)")
+                os_log("Unable to get server %{public}@", log: self.log, type: .info, error.localizedDescription)
 
                 completionHandler(.serverUnavailable)
             case .success(let server):
+
+                self.processOutboundNotification(notif)
+
                 server.sendNotification(notif, completionHandler: { error in
                     if case .serverUnavailable = error {
                         self.serverBecameUnavailable()
@@ -184,7 +279,7 @@ extension RestartingServer: Server {
         startServerIfNeeded { result in
             switch result {
             case .failure(let error):
-                print("unable to get server: \(error)")
+                os_log("Unable to get server %{public}@", log: self.log, type: .info, error.localizedDescription)
 
                 completionHandler(.failure(.serverUnavailable))
             case .success(let server):
