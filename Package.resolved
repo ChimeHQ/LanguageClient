@@ -24,8 +24,8 @@
         "repositoryURL": "https://github.com/ChimeHQ/LanguageServerProtocol",
         "state": {
           "branch": null,
-          "revision": "1fd2b1d7d06cac81c8ae8f7bfd6053f1d03c7fe4",
-          "version": "0.1.2"
+          "revision": "3983642fd6410cb7380644f4ef2975c59237dbc9",
+          "version": "0.2.0"
         }
       },
       {
