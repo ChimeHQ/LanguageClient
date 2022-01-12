@@ -16,7 +16,7 @@ dependencies: [
 
 ### LocalProcessServer
 
-This class manages a locally-running LSP process. Setting correct environment variables could be critical for your server. Your program may not have the same environment as your shell. Capturing shell environment variables is tricky business. If you need help here, check out [ProcessEnv](https://github.com/chimehq/processenv).
+This class manages a locally-running LSP process.
 
 ```swift
 let params = Process.ExecutionParameters(path: "/path/to/server-executable",
@@ -28,6 +28,8 @@ processServer.terminationHandler = { print("server exited") }
 // and if you want to observe communications
 processServer.logMessages = true
 ```
+
+Setting correct environment variables could be critical for your server. Your program may not have the same environment as your shell. Capturing shell environment variables is tricky business. If you need help here, check out [ProcessEnv](https://github.com/chimehq/processenv).
 
 ### InitializingServer
 
