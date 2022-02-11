@@ -11,6 +11,24 @@
         }
       },
       {
+        "package": "FSEventsWrapper",
+        "repositoryURL": "https://github.com/Frizlab/FSEventsWrapper",
+        "state": {
+          "branch": null,
+          "revision": "e0c59a2ce2775e5f6642da6d19207445f10112d0",
+          "version": "1.0.2"
+        }
+      },
+      {
+        "package": "Glob",
+        "repositoryURL": "https://github.com/Bouke/Glob",
+        "state": {
+          "branch": null,
+          "revision": "deda6e163d2ff2a8d7e138e2c3326dbd71157faf",
+          "version": "1.0.5"
+        }
+      },
+      {
         "package": "JSONRPC",
         "repositoryURL": "https://github.com/ChimeHQ/JSONRPC",
         "state": {
@@ -24,8 +42,8 @@
         "repositoryURL": "https://github.com/ChimeHQ/LanguageServerProtocol",
         "state": {
           "branch": null,
-          "revision": "3983642fd6410cb7380644f4ef2975c59237dbc9",
-          "version": "0.2.0"
+          "revision": "9899cac7b65a49cb026d7c6efd59072612760cc5",
+          "version": "0.2.1"
         }
       },
       {

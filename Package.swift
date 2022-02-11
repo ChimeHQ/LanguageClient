@@ -15,14 +15,16 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/ChimeHQ/SwiftLSPClient", from: "0.9.1"),
         .package(url: "https://github.com/ChimeHQ/OperationPlus", from: "1.5.4"),
-        .package(url: "https://github.com/ChimeHQ/LanguageServerProtocol", from: "0.2.0"),
+        .package(url: "https://github.com/ChimeHQ/LanguageServerProtocol", from: "0.2.1"),
+        .package(url: "https://github.com/Frizlab/FSEventsWrapper", from: "1.0.1"),
+        .package(url: "https://github.com/Bouke/Glob", from: "1.0.5"),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
         // Targets can depend on other targets in this package, and on products in packages this package depends on.
         .target(
             name: "LanguageClient",
-            dependencies: ["SwiftLSPClient", "OperationPlus", "LanguageServerProtocol"]),
+            dependencies: ["SwiftLSPClient", "OperationPlus", "LanguageServerProtocol", "FSEventsWrapper", "Glob"]),
         .testTarget(
             name: "LanguageClientTests",
             dependencies: ["LanguageClient"]),
