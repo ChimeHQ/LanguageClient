@@ -43,6 +43,10 @@ Setting correct environment variables could be critical for your server. Your pr
 
 A protocol useful for translating between `NSRange` and LSP's line-relative positioning system.
 
+### FileWatcher
+
+A utility class that uses FS events and glob patterns to handle `DidChangeWatchedFiles`.
+
 ## Suggestions or Feedback
 
 We'd love to hear from you! Get in touch via [twitter](https://twitter.com/chimehq), an issue, or a pull request.
