@@ -64,7 +64,7 @@ public class RestartingServer {
         }
     }
 
-    public func getCapabilities(_ block: @escaping (ServerCapabilities?) -> Void) {
+    public func getCapabilities(_ block: @escaping (LanguageServerProtocol.ServerCapabilities?) -> Void) {
         queue.addOperation {
             switch self.state {
             case .running(let initServer):

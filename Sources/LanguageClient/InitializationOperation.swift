@@ -3,7 +3,7 @@ import OperationPlus
 import SwiftLSPClient
 import LanguageServerProtocol
 
-class InitializationOperation: AsyncProducerOperation<Result<InitializationResponse, ServerError>> {
+class InitializationOperation: AsyncProducerOperation<Result<LanguageServerProtocol.InitializationResponse, ServerError>> {
     typealias InitializeParamsProvider = InitializingServer.InitializeParamsProvider
 
     let initializeParamsProvider: InitializeParamsProvider
@@ -28,7 +28,7 @@ class InitializationOperation: AsyncProducerOperation<Result<InitializationRespo
 
     }
 
-    private func getInitializeParams(_ block: @escaping (InitializeParams) -> Void) {
+    private func getInitializeParams(_ block: @escaping (LanguageServerProtocol.InitializeParams) -> Void) {
         initializeParamsProvider({ (result) in
             switch result {
             case .failure(let error):
@@ -39,7 +39,7 @@ class InitializationOperation: AsyncProducerOperation<Result<InitializationRespo
         })
     }
 
-    private func sendInitNotification(response: InitializationResponse) {
+    private func sendInitNotification(response: LanguageServerProtocol.InitializationResponse) {
         server.initialized(params: InitializedParams()) { error in
             if let error = error {
                 self.finish(with: .failure(error))
