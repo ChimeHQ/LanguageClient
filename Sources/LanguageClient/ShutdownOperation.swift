@@ -1,6 +1,5 @@
 import Foundation
 import OperationPlus
-import SwiftLSPClient
 import LanguageServerProtocol
 
 class ShutdownOperation: AsyncProducerOperation<ServerError?> {

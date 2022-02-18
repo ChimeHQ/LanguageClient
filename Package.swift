@@ -5,7 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "LanguageClient",
-    platforms: [.macOS("10.12")],
+    platforms: [.macOS(.v10_12), .iOS(.v10), .tvOS(.v10), .watchOS(.v3)],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
         .library(
@@ -13,7 +13,6 @@ let package = Package(
             targets: ["LanguageClient"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/ChimeHQ/SwiftLSPClient", from: "0.9.1"),
         .package(url: "https://github.com/ChimeHQ/OperationPlus", from: "1.5.4"),
         .package(url: "https://github.com/ChimeHQ/LanguageServerProtocol", .branch("main")),
         .package(url: "https://github.com/Frizlab/FSEventsWrapper", from: "1.0.1"),
@@ -24,7 +23,7 @@ let package = Package(
         // Targets can depend on other targets in this package, and on products in packages this package depends on.
         .target(
             name: "LanguageClient",
-            dependencies: ["SwiftLSPClient", "OperationPlus", "LanguageServerProtocol", "FSEventsWrapper", "Glob"]),
+            dependencies: ["OperationPlus", "LanguageServerProtocol", "FSEventsWrapper", "Glob"]),
         .testTarget(
             name: "LanguageClientTests",
             dependencies: ["LanguageClient"]),

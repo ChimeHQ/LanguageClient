@@ -1,11 +1,11 @@
 import Foundation
-import SwiftLSPClient
 import LanguageServerProtocol
+import JSONRPC
 
 public class LocalProcessServer {
     private let transport: StdioDataTransport
     private let process: Process
-    private var wrappedServer: LanguageServerProtocol.JSONRPCLanguageServer?
+    private var wrappedServer: JSONRPCLanguageServer?
     public var terminationHandler: (() -> Void)?
 
     public convenience init(path: String, arguments: [String], environment: [String : String]? = nil) {
@@ -17,7 +17,7 @@ public class LocalProcessServer {
     public init(executionParameters parameters: Process.ExecutionParameters) {
         self.transport = StdioDataTransport()
 
-        self.wrappedServer = LanguageServerProtocol.JSONRPCLanguageServer(dataTransport: transport)
+        self.wrappedServer = JSONRPCLanguageServer(dataTransport: transport)
 
         self.process = Process()
 

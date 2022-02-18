@@ -3,7 +3,6 @@ import LanguageServerProtocol
 import OperationPlus
 import JSONRPC
 import AnyCodable
-import SwiftLSPClient
 import os.log
 
 public enum RestartingServerError: Error {

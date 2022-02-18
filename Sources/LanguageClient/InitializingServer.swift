@@ -1,6 +1,5 @@
 import Foundation
 import LanguageServerProtocol
-import SwiftLSPClient
 import OperationPlus
 import AnyCodable
 
@@ -9,16 +8,16 @@ public enum InitializingServerError: Error {
 }
 
 public class InitializingServer {
-    public typealias InitializeParamsProvider = ((@escaping (Result<LanguageServerProtocol.InitializeParams, Error>) -> Void) -> Void)
-    public typealias ServerCapabilitiesChangedHandler = (LanguageServerProtocol.ServerCapabilities) -> Void
+    public typealias InitializeParamsProvider = ((@escaping (Result<InitializeParams, Error>) -> Void) -> Void)
+    public typealias ServerCapabilitiesChangedHandler = (ServerCapabilities) -> Void
 
     enum State {
         case uninitialized
         case initializing
-        case initialized(LanguageServerProtocol.ServerCapabilities)
+        case initialized(ServerCapabilities)
         case shutdown
 
-        var capabilities: LanguageServerProtocol.ServerCapabilities? {
+        var capabilities: ServerCapabilities? {
             switch self {
             case .initialized(let caps):
                 return caps
@@ -47,7 +46,7 @@ public class InitializingServer {
         wrappedServer.requestHandler = { [unowned self] in self.handleRequest($0, completionHandler: $1) }
     }
 
-    public func getCapabilities(_ block: @escaping (LanguageServerProtocol.ServerCapabilities?) -> Void) {
+    public func getCapabilities(_ block: @escaping (ServerCapabilities?) -> Void) {
         queue.addOperation {
             let caps = self.state.capabilities
 

@@ -1,6 +1,6 @@
 import Foundation
-import SwiftLSPClient
 import AppKit
+import LanguageServerProtocol
 
 public enum TextPositionTransformerError: Error {
     case invalidRange(LSPRange)
