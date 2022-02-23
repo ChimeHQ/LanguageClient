@@ -33,8 +33,8 @@
         "repositoryURL": "https://github.com/ChimeHQ/JSONRPC",
         "state": {
           "branch": null,
-          "revision": "fce606d24571523c1395a69cebf5a63df68564e0",
-          "version": "0.3.0"
+          "revision": "1c1bc2f876f778f0689040eebc9321833508c6dc",
+          "version": "0.3.3"
         }
       },
       {
@@ -42,8 +42,8 @@
         "repositoryURL": "https://github.com/ChimeHQ/LanguageServerProtocol",
         "state": {
           "branch": null,
-          "revision": "bb54067f0a664f67ae4011ba6535105b3cdc7b98",
-          "version": "0.3.0"
+          "revision": "7a489b01d6269ea783b9ad7ea73a8664f2ace059",
+          "version": "0.4.1"
         }
       },
       {
