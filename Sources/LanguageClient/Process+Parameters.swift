@@ -1,5 +1,7 @@
 import Foundation
 
+#if os(macOS)
+
 public extension Process {
     struct ExecutionParameters {
         public var path: String
@@ -30,3 +32,5 @@ public extension Process {
         }
     }
 }
+
+#endif

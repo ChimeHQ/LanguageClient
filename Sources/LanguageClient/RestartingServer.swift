@@ -1,8 +1,10 @@
 import Foundation
 import LanguageServerProtocol
-import OperationPlus
 import JSONRPC
 import AnyCodable
+
+#if os(macOS)
+import OperationPlus
 import os.log
 
 public enum RestartingServerError: Error {
@@ -295,3 +297,5 @@ extension RestartingServer: Server {
         }
     }
 }
+
+#endif

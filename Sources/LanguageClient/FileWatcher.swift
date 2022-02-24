@@ -1,5 +1,7 @@
 import Foundation
 import LanguageServerProtocol
+
+#if canImport(FSEventsWrapper) && canImport(Glob)
 import FSEventsWrapper
 import Glob
 
@@ -162,3 +164,5 @@ public class FileWatcher {
         return attr?[.modificationDate] as? Date
     }
 }
+
+#endif

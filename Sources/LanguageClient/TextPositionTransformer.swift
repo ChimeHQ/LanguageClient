@@ -1,5 +1,4 @@
 import Foundation
-import AppKit
 import LanguageServerProtocol
 
 public enum TextPositionTransformerError: Error {

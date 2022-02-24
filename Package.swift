@@ -1,4 +1,4 @@
-// swift-tools-version:5.1
+// swift-tools-version:5.3
 
 import PackageDescription
 
@@ -19,7 +19,12 @@ let package = Package(
     targets: [
         .target(
             name: "LanguageClient",
-            dependencies: ["OperationPlus", "LanguageServerProtocol", "FSEventsWrapper", "Glob"]),
+            dependencies: [
+                .productItem(name: "OperationPlus", package: "OperationPlus", condition: nil),
+                .productItem(name: "LanguageServerProtocol", package: "LanguageServerProtocol", condition: nil),
+                .productItem(name: "FSEventsWrapper", package: "FSEventsWrapper", condition: .when(platforms: [.macOS])),
+                .productItem(name: "Glob", package: "Glob", condition: .when(platforms: [.macOS])),
+            ]),
         .testTarget(
             name: "LanguageClientTests",
             dependencies: ["LanguageClient"]),

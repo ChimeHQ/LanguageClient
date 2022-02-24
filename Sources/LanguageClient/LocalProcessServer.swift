@@ -2,6 +2,8 @@ import Foundation
 import LanguageServerProtocol
 import JSONRPC
 
+#if os(macOS)
+
 public class LocalProcessServer {
     private let transport: StdioDataTransport
     private let process: Process
@@ -84,3 +86,5 @@ extension LocalProcessServer: LanguageServerProtocol.Server {
         server.sendRequest(request, completionHandler: completionHandler)
     }
 }
+
+#endif
