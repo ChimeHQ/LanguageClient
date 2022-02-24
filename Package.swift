@@ -25,8 +25,5 @@ let package = Package(
                 .productItem(name: "FSEventsWrapper", package: "FSEventsWrapper", condition: .when(platforms: [.macOS])),
                 .productItem(name: "Glob", package: "Glob", condition: .when(platforms: [.macOS])),
             ]),
-        .testTarget(
-            name: "LanguageClientTests",
-            dependencies: ["LanguageClient"]),
     ]
 )
