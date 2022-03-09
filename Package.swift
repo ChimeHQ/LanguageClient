@@ -15,6 +15,7 @@ let package = Package(
         .package(url: "https://github.com/ChimeHQ/LanguageServerProtocol",  from: "0.4.1"),
         .package(url: "https://github.com/Frizlab/FSEventsWrapper", from: "1.0.1"),
         .package(url: "https://github.com/Bouke/Glob", from: "1.0.5"),
+        .package(url: "https://github.com/ChimeHQ/ProcessEnv", from: "0.3.0"),
     ],
     targets: [
         .target(
@@ -22,6 +23,7 @@ let package = Package(
             dependencies: [
                 .productItem(name: "OperationPlus", package: "OperationPlus", condition: nil),
                 .productItem(name: "LanguageServerProtocol", package: "LanguageServerProtocol", condition: nil),
+                .productItem(name: "ProcessEnv", package: "ProcessEnv", condition: .when(platforms: [.macOS])),
                 .productItem(name: "FSEventsWrapper", package: "FSEventsWrapper", condition: .when(platforms: [.macOS])),
                 .productItem(name: "Glob", package: "Glob", condition: .when(platforms: [.macOS])),
             ]),

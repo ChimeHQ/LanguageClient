@@ -63,6 +63,15 @@
           "revision": "f5d2899e113943d7ea8f73462639217acc6b92b9",
           "version": "1.5.4"
         }
+      },
+      {
+        "package": "ProcessEnv",
+        "repositoryURL": "https://github.com/ChimeHQ/ProcessEnv",
+        "state": {
+          "branch": null,
+          "revision": "7bcb6c11593be08456f48042fad1a7bf875f217a",
+          "version": "0.3.0"
+        }
       }
     ]
   },

@@ -3,6 +3,7 @@ import LanguageServerProtocol
 import JSONRPC
 
 #if os(macOS)
+import ProcessEnv
 
 public class LocalProcessServer {
     private let transport: StdioDataTransport
