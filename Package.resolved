@@ -33,8 +33,8 @@
         "repositoryURL": "https://github.com/ChimeHQ/JSONRPC",
         "state": {
           "branch": null,
-          "revision": "1c1bc2f876f778f0689040eebc9321833508c6dc",
-          "version": "0.3.3"
+          "revision": "d6b33c3242e71fde51bbcf1b920f85a387577a2f",
+          "version": "0.4.0"
         }
       },
       {
@@ -42,17 +42,8 @@
         "repositoryURL": "https://github.com/ChimeHQ/LanguageServerProtocol",
         "state": {
           "branch": null,
-          "revision": "7a489b01d6269ea783b9ad7ea73a8664f2ace059",
-          "version": "0.4.1"
-        }
-      },
-      {
-        "package": "NullCodable",
-        "repositoryURL": "https://github.com/g-mark/NullCodable",
-        "state": {
-          "branch": null,
-          "revision": "dcdda8a5b079827f65e283ab7c29d5caae4caf89",
-          "version": "1.1.0"
+          "revision": "c6f1b6bb81874262593507a1e9504275ac748fba",
+          "version": "0.5.1"
         }
       },
       {
