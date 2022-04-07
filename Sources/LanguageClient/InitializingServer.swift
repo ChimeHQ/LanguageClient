@@ -34,6 +34,7 @@ public class InitializingServer {
     public var initializeParamsProvider: InitializeParamsProvider
     public var serverCapabilitiesChangedHandler: ServerCapabilitiesChangedHandler?
     public var defaultTimeout: TimeInterval = 10.0
+    public var requestHandler: RequestHandler?
 
     public init(server: Server) {
         self.state = .uninitialized
@@ -109,25 +110,28 @@ extension InitializingServer {
 extension InitializingServer: Server {
     private func handleRequest(_ request: ServerRequest, completionHandler: @escaping (ServerResult<AnyCodable>) -> Void) -> Void {
         queue.addOperation {
-            guard case .initialized(var caps) = self.state else {
+            guard case .initialized(let caps) = self.state else {
                 assertionFailure("received a request without being initialized")
                 return
             }
 
+            var newCaps = caps
+
             do {
                 switch request {
                 case .clientRegisterCapability(let params):
-                    try caps.applyRegistrations(params.registrations)
+                    try newCaps.applyRegistrations(params.registrations)
                 case .clientUnregisterCapability(let params):
-                    try caps.applyUnregistrations(params.unregistrations)
+                    try newCaps.applyUnregistrations(params.unregistrations)
                 default:
                     break
                 }
 
-                self.state = .initialized(caps)
+                if caps != newCaps {
+                    self.state = .initialized(newCaps)
 
-                self.serverCapabilitiesChangedHandler?(caps)
-
+                    self.serverCapabilitiesChangedHandler?(newCaps)
+                }
             } catch {
                 completionHandler(.failure(.requestDispatchFailed(error)))
                 return
@@ -140,11 +144,6 @@ extension InitializingServer: Server {
 
             handler(request, completionHandler)
         }
-    }
-
-    public var requestHandler: RequestHandler? {
-        get { return wrappedServer.requestHandler }
-        set { wrappedServer.requestHandler = newValue }
     }
 
     public var notificationHandler: NotificationHandler? {
