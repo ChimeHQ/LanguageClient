@@ -2,6 +2,7 @@ import Foundation
 import LanguageServerProtocol
 import OperationPlus
 import AnyCodable
+import os.log
 
 public enum InitializingServerError: Error {
     case noStateProvider
@@ -31,6 +32,8 @@ public class InitializingServer {
     private var state: State
     private let queue: OperationQueue
     private var openDocuments: [DocumentUri]
+    private let log: OSLog
+    
     public var initializeParamsProvider: InitializeParamsProvider
     public var serverCapabilitiesChangedHandler: ServerCapabilitiesChangedHandler?
     public var defaultTimeout: TimeInterval = 10.0
@@ -40,7 +43,8 @@ public class InitializingServer {
         self.state = .uninitialized
         self.wrappedServer = server
         self.openDocuments = []
-        self.queue = OperationQueue.serialQueue(named: "com.chimehq.InitializingServer")
+        self.queue = OperationQueue.serialQueue(named: "com.chimehq.LanguageClient.InitializingServer")
+        self.log = OSLog(subsystem: "com.chimehq.LanguageClient", category: "InitializingServer")
 
         self.initializeParamsProvider = { block in block(.failure(InitializingServerError.noStateProvider)) }
 
@@ -71,7 +75,7 @@ extension InitializingServer {
 
             switch result {
             case .failure(let error):
-                print("failed to initialize \(error)")
+                os_log("failed to initialize: %{public}@", log: self.log, type: .error, String(describing: error))
 
                 self.state = .uninitialized
             case .success(let response):

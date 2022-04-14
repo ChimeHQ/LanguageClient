@@ -110,7 +110,7 @@ public class RestartingServer {
 
                     server.didOpenTextDocument(params: params) { error in
                         if let error = error {
-                            os_log("Failed to reopen document %{public}@: %{public}@", log: self.log, type: .error, uri, error.localizedDescription)
+                            os_log("Failed to reopen document %{public}@: %{public}@", log: self.log, type: .error, uri, String(describing: error))
                         }
                     }
 
@@ -192,11 +192,16 @@ public class RestartingServer {
         let date = Date()
 
         queue.addOperation {
+            if case .stopped = self.state {
+                os_log("Server is already stopped", log: self.log, type: .info)
+                return
+            }
+
             self.state = .stopped(date)
 
             self.queue.addOperation(afterDelay: 5.0) {
                 guard case .stopped = self.state else {
-                    os_log("State change during restart", log: self.log, type: .error)
+                    os_log("State change during restart: %{public}%@", log: self.log, type: .error, String(describing: self.state))
                     return
                 }
 
