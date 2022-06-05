@@ -265,7 +265,7 @@ extension RestartingServer: Server {
         startServerIfNeeded { result in
             switch result {
             case .failure(let error):
-                os_log("Unable to get server %{public}@", log: self.log, type: .info, error.localizedDescription)
+                os_log("Unable to get server to send notification: %{public}@, %{public}@", log: self.log, type: .error, notif.method.rawValue, String(describing: error))
 
                 completionHandler(.serverUnavailable)
             case .success(let server):
@@ -287,7 +287,7 @@ extension RestartingServer: Server {
         startServerIfNeeded { result in
             switch result {
             case .failure(let error):
-                os_log("Unable to get server %{public}@", log: self.log, type: .info, error.localizedDescription)
+                os_log("Unable to get server to send request: %{public}@, %{public}@", log: self.log, type: .error, request.method.rawValue, String(describing: error))
 
                 completionHandler(.failure(.serverUnavailable))
             case .success(let server):
