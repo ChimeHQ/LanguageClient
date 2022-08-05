@@ -14,8 +14,9 @@ public enum RestartingServerError: Error {
     case noTextDocumentForURI(DocumentUri)
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public class RestartingServer {
-    public typealias ExecutionParamsProvider = (@escaping (Result<Process.ExecutionParameters, Error>) -> Void) -> Void
+    public typealias ServerProvider = () async throws -> Server
     public typealias TextDocumentItemProvider = ((DocumentUri, @escaping (Result<TextDocumentItem, Error>) -> Void) -> Void)
     public typealias InitializeParamsProvider = InitializingServer.InitializeParamsProvider
     public typealias ServerCapabilitiesChangedHandler = InitializingServer.ServerCapabilitiesChangedHandler
@@ -35,26 +36,16 @@ public class RestartingServer {
 
     public var requestHandler: RequestHandler?
     public var notificationHandler: NotificationHandler?
-    public var executionParamsProvider: ExecutionParamsProvider
+    public var serverProvider: ServerProvider
     public var initializeParamsProvider: InitializeParamsProvider
     public var textDocumentItemProvider: TextDocumentItemProvider
     public var serverCapabilitiesChangedHandler: ServerCapabilitiesChangedHandler?
 
-    public var logMessages: Bool = false
-
-    public init(executionParameters: Process.ExecutionParameters? = nil) {
+    public init() {
         self.state = .notStarted
         self.openDocumentURIs = Set()
         self.queue = OperationQueue.serialQueue(named: "com.chimehq.LanguageClient-RestartingServer")
         self.log = OSLog(subsystem: "com.chimehq.LanguageClient", category: "RestartingServer")
-
-        self.executionParamsProvider = { block in
-            if let params = executionParameters {
-                block(.success(params))
-            } else {
-                block(.failure(RestartingServerError.noProvider))
-            }
-        }
 
         self.initializeParamsProvider = { block in
             block(.failure(RestartingServerError.noProvider))
@@ -62,6 +53,10 @@ public class RestartingServer {
 
         self.textDocumentItemProvider = { _, block in
             block(.failure(RestartingServerError.noProvider))
+        }
+
+        self.serverProvider = {
+            throw RestartingServerError.noProvider
         }
     }
 
@@ -122,17 +117,13 @@ public class RestartingServer {
         group.notify(queue: .global(), execute: completionHandler)
     }
 
-    private func makeNewServer(with params: Process.ExecutionParameters) -> InitializingServer {
-        let processServer = LocalProcessServer(executionParameters: params)
+    private func makeNewServer() async throws -> InitializingServer {
+        let server = try await serverProvider()
 
-        processServer.terminationHandler = { [unowned self] in self.serverBecameUnavailable() }
+        let initServer = InitializingServer(server: server)
 
-        processServer.logMessages = self.logMessages
-
-        let initServer = InitializingServer(server: processServer)
-
-        initServer.notificationHandler = { [unowned self] in self.handleNotification($0, completionHandler: $1) }
-        initServer.requestHandler = { [unowned self] in self.handleRequest($0, completionHandler: $1) }
+        initServer.notificationHandler = { [weak self] in self?.handleNotification($0, completionHandler: $1) }
+        initServer.requestHandler = { [weak self] in self?.handleRequest($0, completionHandler: $1) }
         initServer.initializeParamsProvider = { [unowned self] in self.initializeParamsProvider($0) }
         initServer.serverCapabilitiesChangedHandler = { [unowned self] in self.serverCapabilitiesChangedHandler?($0) }
 
@@ -140,11 +131,15 @@ public class RestartingServer {
     }
 
     private func startNewServer(completionHandler: @escaping (Result<InitializingServer, Error>) -> Void) {
-        executionParamsProvider({ result in
-            let serverResult = result.map { self.makeNewServer(with: $0) }
+        Task {
+            do {
+                let server = try await makeNewServer()
 
-            completionHandler(serverResult)
-        })
+                completionHandler(.success(server))
+            } catch {
+                completionHandler(.failure(error))
+            }
+        }
     }
 
     private func startNewServerAndAdjustState(reopenDocs: Bool, completionHandler: @escaping (Result<InitializingServer, Error>) -> Void) {
@@ -186,7 +181,7 @@ public class RestartingServer {
         queue.addOperation(op)
     }
 
-    private func serverBecameUnavailable() {
+    public func serverBecameUnavailable() {
         os_log("Server became unavailable", log: self.log, type: .info)
 
         let date = Date()
@@ -260,6 +255,7 @@ public class RestartingServer {
     }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension RestartingServer: Server {
     public func sendNotification(_ notif: ClientNotification, completionHandler: @escaping (ServerError?) -> Void) {
         startServerIfNeeded { result in
