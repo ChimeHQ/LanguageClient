@@ -1,11 +1,10 @@
 import Foundation
-import LanguageServerProtocol
-import JSONRPC
-import AnyCodable
-
-#if os(macOS)
-import OperationPlus
 import os.log
+
+import AnyCodable
+import JSONRPC
+import LanguageServerProtocol
+import OperationPlus
 
 public enum RestartingServerError: Error {
     case noProvider
@@ -84,7 +83,7 @@ public class RestartingServer {
 
             self.queue.addOperation(op)
 
-            op.resultCompletionBlock = block
+            op.outputCompletionBlock = block
         }
     }
 
@@ -176,7 +175,7 @@ public class RestartingServer {
             }
         }
 
-        op.resultCompletionBlock = block
+        op.outputCompletionBlock = block
 
         queue.addOperation(op)
     }
@@ -298,5 +297,3 @@ extension RestartingServer: Server {
         }
     }
 }
-
-#endif

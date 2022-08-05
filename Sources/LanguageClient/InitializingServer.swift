@@ -64,7 +64,7 @@ extension InitializingServer {
     private func makeInitializationOperation() -> Operation {
         let initOp = InitializationOperation(server: wrappedServer, initializeParamsProvider: initializeParamsProvider)
 
-        initOp.resultCompletionBlock = { result in
+        initOp.outputCompletionBlock = { result in
             // verify we are in the right state here
             switch self.state {
             case .initializing:
@@ -168,8 +168,8 @@ extension InitializingServer: Server {
             }
         }
 
-        op.resultCompletionBlockBehavior = .onTimeOut(ServerError.timeout)
-        op.resultCompletionBlock = completionHandler
+        op.outputCompletionBlockBehavior = .onTimeOut(ServerError.timeout)
+        op.outputCompletionBlock = completionHandler
 
         enqueueInitDependantOperation(op)
     }
@@ -193,8 +193,8 @@ extension InitializingServer: Server {
             })
         }
 
-        op.resultCompletionBlockBehavior = .onTimeOut(.failure(ServerError.timeout))
-        op.resultCompletionBlock = completionHandler
+        op.outputCompletionBlockBehavior = .onTimeOut(.failure(ServerError.timeout))
+        op.outputCompletionBlock = completionHandler
 
         enqueueInitDependantOperation(op)
     }

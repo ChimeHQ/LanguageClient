@@ -11,7 +11,7 @@ let package = Package(
             targets: ["LanguageClient"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/ChimeHQ/OperationPlus", from: "1.5.4"),
+        .package(url: "https://github.com/ChimeHQ/OperationPlus", from: "1.6.0"),
         .package(url: "https://github.com/ChimeHQ/LanguageServerProtocol",  from: "0.5.1"),
         .package(url: "https://github.com/Frizlab/FSEventsWrapper", from: "1.0.1"),
         .package(url: "https://github.com/Bouke/Glob", from: "1.0.5"),
