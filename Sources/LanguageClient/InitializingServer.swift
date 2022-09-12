@@ -8,8 +8,9 @@ public enum InitializingServerError: Error {
     case noStateProvider
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public class InitializingServer {
-    public typealias InitializeParamsProvider = ((@escaping (Result<InitializeParams, Error>) -> Void) -> Void)
+    public typealias InitializeParamsProvider = () async throws -> InitializeParams
     public typealias ServerCapabilitiesChangedHandler = (ServerCapabilities) -> Void
 
     enum State {
@@ -46,7 +47,7 @@ public class InitializingServer {
         self.queue = OperationQueue.serialQueue(named: "com.chimehq.LanguageClient.InitializingServer")
         self.log = OSLog(subsystem: "com.chimehq.LanguageClient", category: "InitializingServer")
 
-        self.initializeParamsProvider = { block in block(.failure(InitializingServerError.noStateProvider)) }
+        self.initializeParamsProvider = { throw InitializingServerError.noStateProvider }
 
         wrappedServer.requestHandler = { [unowned self] in self.handleRequest($0, completionHandler: $1) }
     }
@@ -60,6 +61,7 @@ public class InitializingServer {
     }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension InitializingServer {
     private func makeInitializationOperation() -> Operation {
         let initOp = InitializationOperation(server: wrappedServer, initializeParamsProvider: initializeParamsProvider)
@@ -111,6 +113,7 @@ extension InitializingServer {
     }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension InitializingServer: Server {
     private func handleRequest(_ request: ServerRequest, completionHandler: @escaping (ServerResult<AnyCodable>) -> Void) -> Void {
         queue.addOperation {

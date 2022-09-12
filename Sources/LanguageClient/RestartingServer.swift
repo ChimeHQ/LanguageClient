@@ -16,7 +16,7 @@ public enum RestartingServerError: Error {
 @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public class RestartingServer {
     public typealias ServerProvider = () async throws -> Server
-    public typealias TextDocumentItemProvider = ((DocumentUri, @escaping (Result<TextDocumentItem, Error>) -> Void) -> Void)
+    public typealias TextDocumentItemProvider = (DocumentUri) async throws -> TextDocumentItem
     public typealias InitializeParamsProvider = InitializingServer.InitializeParamsProvider
     public typealias ServerCapabilitiesChangedHandler = InitializingServer.ServerCapabilitiesChangedHandler
     
@@ -46,17 +46,9 @@ public class RestartingServer {
         self.queue = OperationQueue.serialQueue(named: "com.chimehq.LanguageClient-RestartingServer")
         self.log = OSLog(subsystem: "com.chimehq.LanguageClient", category: "RestartingServer")
 
-        self.initializeParamsProvider = { block in
-            block(.failure(RestartingServerError.noProvider))
-        }
-
-        self.textDocumentItemProvider = { _, block in
-            block(.failure(RestartingServerError.noProvider))
-        }
-
-        self.serverProvider = {
-            throw RestartingServerError.noProvider
-        }
+		self.initializeParamsProvider = { throw RestartingServerError.noProvider }
+		self.textDocumentItemProvider = { _ in throw RestartingServerError.noProvider }
+        self.serverProvider = { throw RestartingServerError.noProvider }
     }
 
     public func getCapabilities(_ block: @escaping (LanguageServerProtocol.ServerCapabilities?) -> Void) {
@@ -88,32 +80,27 @@ public class RestartingServer {
     }
 
     private func reopenDocuments(for server: Server, completionHandler: @escaping () -> Void) {
-        let group = DispatchGroup()
+		let openURIs = self.openDocumentURIs
 
-        for uri in self.openDocumentURIs {
-            group.enter()
+		Task {
+			for uri in openURIs {
+				os_log("Trying to reopen document %{public}@", log: self.log, type: .info, uri)
 
-            os_log("Trying to reopen document %{public}@", log: self.log, type: .info, uri)
+				do {
+					let item = try await textDocumentItemProvider(uri)
 
-            textDocumentItemProvider(uri, { result in
-                switch result {
-                case .failure:
-                    break
-                case .success(let item):
-                    let params = DidOpenTextDocumentParams(textDocument: item)
+					let params = DidOpenTextDocumentParams(textDocument: item)
 
-                    server.didOpenTextDocument(params: params) { error in
-                        if let error = error {
-                            os_log("Failed to reopen document %{public}@: %{public}@", log: self.log, type: .error, uri, String(describing: error))
-                        }
-                    }
+					try await server.didOpenTextDocument(params: params)
+				} catch {
+					os_log("Failed to reopen document %{public}@: %{public}@", log: self.log, type: .error, uri, String(describing: error))
+				}
+			}
 
-                    group.leave()
-                }
-            })
-        }
-
-        group.notify(queue: .global(), execute: completionHandler)
+			DispatchQueue.global().async {
+				completionHandler()
+			}
+		}
     }
 
     private func makeNewServer() async throws -> InitializingServer {
@@ -123,7 +110,7 @@ public class RestartingServer {
 
         initServer.notificationHandler = { [weak self] in self?.handleNotification($0, completionHandler: $1) }
         initServer.requestHandler = { [weak self] in self?.handleRequest($0, completionHandler: $1) }
-        initServer.initializeParamsProvider = { [unowned self] in self.initializeParamsProvider($0) }
+        initServer.initializeParamsProvider = { [unowned self] in try await self.initializeParamsProvider() }
         initServer.serverCapabilitiesChangedHandler = { [unowned self] in self.serverCapabilitiesChangedHandler?($0) }
 
         return initServer
