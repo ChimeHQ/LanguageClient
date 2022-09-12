@@ -36,6 +36,9 @@ Setting correct environment variables could be critical for your server. Your pr
 `Server` wrapper that provides automatic initialization. This takes care of the protocol initialization handshake, and does so lazily, on first message.
 
 ```swift
+import LanguageClient
+import LanguageServerProtocol
+
 let executionParams = Process.ExecutionParameters(path: "/usr/bin/sourcekit-lsp")
 
 let localServer = LocalProcessServer(executionParameters: executionParams)
@@ -83,7 +86,7 @@ Task {
                                             position: pos,
                                             triggerKind: .invoked,
                                             triggerCharacter: nil)
-    let completions = try await server.completions(params: completionParams)
+    let completions = try await server.completion(params: completionParams)
 
     print("completions: ", completions)
 }
