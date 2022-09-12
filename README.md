@@ -33,7 +33,61 @@ Setting correct environment variables could be critical for your server. Your pr
 
 ### InitializingServer
 
-`Server` wrapper that provides automatic initialization.
+`Server` wrapper that provides automatic initialization. This takes care of the protocol initialization handshake, and does so lazily, on first message.
+
+```swift
+let executionParams = Process.ExecutionParameters(path: "/usr/bin/sourcekit-lsp")
+
+let localServer = LocalProcessServer(executionParameters: executionParams)
+
+let server = InitializingServer(server: localServer)
+
+let docURL = URL(fileURLWithPath: "/path/to/your/test.swift")
+let projectURL = docURL.deletingLastPathComponent()
+
+server.initializeParamsProvider = {
+    // you may need to fill more of the textDocument field in for completions
+    // to work, depending on your server
+    let capabilities = ClientCapabilities(workspace: nil,
+                                          textDocument: nil,
+                                          window: nil,
+                                          general: nil,
+                                          experimental: nil)
+
+    // pay careful attention to rootPath/rootURI/workspaceFolders, as different servers will
+    // have different expectations/requirements here
+
+    return InitializeParams(processId: Int(ProcessInfo.processInfo.processIdentifier),
+                            rootPath: nil,
+                            rootURI: projectURL.absoluteString,
+                            initializationOptions: nil,
+                            capabilities: capabilities,
+                            trace: nil,
+                            workspaceFolders: nil)
+}
+
+Task {
+    let docContent = try String(contentsOf: docURL)
+
+    let doc = TextDocumentItem(uri: docURL.absoluteString,
+                               languageId: .swift,
+                               version: 1,
+                               text: docContent)
+    let docParams = DidOpenTextDocumentParams(textDocument: doc)
+
+    try await server.didOpenTextDocument(params: docParams)
+
+    // make sure to pick a reasonable position within your test document
+    let pos = Position(line: 5, character: 25)
+    let completionParams = CompletionParams(uri: docURL.absoluteString,
+                                            position: pos,
+                                            triggerKind: .invoked,
+                                            triggerCharacter: nil)
+    let completions = try await server.completions(params: completionParams)
+
+    print("completions: ", completions)
+}
+```
 
 ### RestartingServer
 
