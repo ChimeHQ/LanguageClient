@@ -13,6 +13,7 @@ public enum RestartingServerError: Error {
     case noTextDocumentForURI(DocumentUri)
 }
 
+/// A `Server` wrapper that provides both transparent server-side state restoration should the underlying process crash.
 @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *)
 public class RestartingServer {
     public typealias ServerProvider = () async throws -> Server
