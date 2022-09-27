@@ -13,7 +13,7 @@ public enum RestartingServerError: Error {
     case noTextDocumentForURI(DocumentUri)
 }
 
-@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
+@available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *)
 public class RestartingServer {
     public typealias ServerProvider = () async throws -> Server
     public typealias TextDocumentItemProvider = (DocumentUri) async throws -> TextDocumentItem
@@ -31,7 +31,7 @@ public class RestartingServer {
     private var state: State
     private var openDocumentURIs: Set<DocumentUri>
     private let queue: OperationQueue
-    private let log: OSLog
+    private let logger = Logger(subsystem: "com.chimehq.LanguageClient", category: "RestartingServer")
 
     public var requestHandler: RequestHandler?
     public var notificationHandler: NotificationHandler?
@@ -44,7 +44,6 @@ public class RestartingServer {
         self.state = .notStarted
         self.openDocumentURIs = Set()
         self.queue = OperationQueue.serialQueue(named: "com.chimehq.LanguageClient-RestartingServer")
-        self.log = OSLog(subsystem: "com.chimehq.LanguageClient", category: "RestartingServer")
 
 		self.initializeParamsProvider = { throw RestartingServerError.noProvider }
 		self.textDocumentItemProvider = { _ in throw RestartingServerError.noProvider }
@@ -84,7 +83,7 @@ public class RestartingServer {
 
 		Task {
 			for uri in openURIs {
-				os_log("Trying to reopen document %{public}@", log: self.log, type: .info, uri)
+				self.logger.info("Trying to reopen document \(uri, privacy: .public)")
 
 				do {
 					let item = try await textDocumentItemProvider(uri)
@@ -93,7 +92,7 @@ public class RestartingServer {
 
 					try await server.didOpenTextDocument(params: params)
 				} catch {
-					os_log("Failed to reopen document %{public}@: %{public}@", log: self.log, type: .error, uri, String(describing: error))
+					self.logger.error("Failed to reopen document \(uri, privacy: .public): \(error, privacy: .public)")
 				}
 			}
 
@@ -123,6 +122,8 @@ public class RestartingServer {
 
                 completionHandler(.success(server))
             } catch {
+				self.logger.error("Failed to start a new server: \(error, privacy: .public)")
+
                 completionHandler(.failure(error))
             }
         }
@@ -168,13 +169,13 @@ public class RestartingServer {
     }
 
     public func serverBecameUnavailable() {
-        os_log("Server became unavailable", log: self.log, type: .info)
+		self.logger.info("Server became unavailable")
 
         let date = Date()
 
         queue.addOperation {
             if case .stopped = self.state {
-                os_log("Server is already stopped", log: self.log, type: .info)
+				self.logger.info("Server is already stopped")
                 return
             }
 
@@ -182,7 +183,7 @@ public class RestartingServer {
 
             self.queue.addOperation(afterDelay: 5.0) {
                 guard case .stopped = self.state else {
-                    os_log("State change during restart: %{public}%@", log: self.log, type: .error, String(describing: self.state))
+					self.logger.info("State change during restart: \(String(describing: self.state), privacy: .public)")
                     return
                 }
 
@@ -241,13 +242,13 @@ public class RestartingServer {
     }
 }
 
-@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
+@available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *)
 extension RestartingServer: Server {
     public func sendNotification(_ notif: ClientNotification, completionHandler: @escaping (ServerError?) -> Void) {
         startServerIfNeeded { result in
             switch result {
             case .failure(let error):
-                os_log("Unable to get server to send notification: %{public}@, %{public}@", log: self.log, type: .error, notif.method.rawValue, String(describing: error))
+				self.logger.error("Unable to get server to send notification \(notif.method.rawValue, privacy: .public): \(error, privacy: .public)")
 
                 completionHandler(.serverUnavailable)
             case .success(let server):
@@ -269,7 +270,7 @@ extension RestartingServer: Server {
         startServerIfNeeded { result in
             switch result {
             case .failure(let error):
-                os_log("Unable to get server to send request: %{public}@, %{public}@", log: self.log, type: .error, request.method.rawValue, String(describing: error))
+				self.logger.error("Unable to get server to send request \(request.method.rawValue, privacy: .public): \(error, privacy: .public)")
 
                 completionHandler(.failure(.serverUnavailable))
             case .success(let server):
