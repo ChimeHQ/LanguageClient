@@ -21,11 +21,11 @@ let package = Package(
         .target(
             name: "LanguageClient",
             dependencies: [
-                .productItem(name: "OperationPlus", package: "OperationPlus", condition: nil),
-                .productItem(name: "LanguageServerProtocol", package: "LanguageServerProtocol", condition: nil),
-                .productItem(name: "ProcessEnv", package: "ProcessEnv", condition: .when(platforms: [.macOS])),
-                .productItem(name: "FSEventsWrapper", package: "FSEventsWrapper", condition: .when(platforms: [.macOS])),
-                .productItem(name: "Glob", package: "Glob", condition: .when(platforms: [.macOS])),
+                .product(name: "OperationPlus", package: "OperationPlus", condition: nil),
+                .product(name: "LanguageServerProtocol", package: "LanguageServerProtocol", condition: nil),
+                .product(name: "ProcessEnv", package: "ProcessEnv", condition: .when(platforms: [.macOS])),
+                .product(name: "FSEventsWrapper", package: "FSEventsWrapper", condition: .when(platforms: [.macOS])),
+                .product(name: "Glob", package: "Glob", condition: .when(platforms: [.macOS])),
             ]),
     ]
 )
