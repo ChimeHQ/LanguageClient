@@ -6,6 +6,7 @@ import os.log
 
 public enum InitializingServerError: Error {
     case noStateProvider
+	case capabilitiesUnavailable
 }
 
 @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
@@ -59,6 +60,26 @@ public class InitializingServer {
             block(caps)
         }
     }
+
+	/// Return the capabilities of the server.
+	///
+	/// This will not start the server, and will throw if it is not running.
+	public var capabilities: ServerCapabilities {
+		get async throws {
+			return try await withCheckedThrowingContinuation { continuation in
+				let op = BlockOperation {
+					guard let caps = self.state.capabilities else {
+						continuation.resume(throwing: InitializingServerError.capabilitiesUnavailable)
+						return
+					}
+
+					continuation.resume(returning: caps)
+				}
+
+				self.enqueueInitDependantOperation(op)
+			}
+		}
+	}
 }
 
 @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)

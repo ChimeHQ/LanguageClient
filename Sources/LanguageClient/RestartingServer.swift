@@ -62,6 +62,28 @@ public class RestartingServer {
         }
     }
 
+	/// Return the capabilities of the server.
+	///
+	/// This will start the server if it is not running.
+	public var capabilities: LanguageServerProtocol.ServerCapabilities {
+		get async throws {
+			return try await withCheckedThrowingContinuation { continuation in
+				startServerIfNeeded { result in
+					switch result {
+					case .failure(let error):
+						continuation.resume(throwing: error)
+					case .success(let server):
+						Task {
+							let caps = try await server.capabilities
+							
+							continuation.resume(returning: caps)
+						}
+					}
+				}
+			}
+		}
+	}
+
     public func shutdownAndExit(block: @escaping (ServerError?) -> Void) {
         queue.addOperation {
             guard case .running(let server) = self.state else {
