@@ -136,7 +136,7 @@ extension InitializingServer {
 
 @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension InitializingServer: Server {
-    private func handleRequest(_ request: ServerRequest, completionHandler: @escaping (ServerResult<AnyCodable>) -> Void) -> Void {
+    private func handleRequest(_ request: ServerRequest, completionHandler: @escaping (ServerResult<LSPAny>) -> Void) -> Void {
         queue.addOperation {
             guard case .initialized(let caps) = self.state else {
                 assertionFailure("received a request without being initialized")

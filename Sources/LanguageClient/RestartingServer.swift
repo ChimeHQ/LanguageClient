@@ -253,7 +253,7 @@ public class RestartingServer {
         }
     }
 
-    private func handleRequest(_ request: ServerRequest, completionHandler: @escaping (ServerResult<AnyCodable>) -> Void) -> Void {
+    private func handleRequest(_ request: ServerRequest, completionHandler: @escaping (ServerResult<LSPAny>) -> Void) -> Void {
         queue.addOperation {
             guard let handler = self.requestHandler else {
                 completionHandler(.failure(.handlerUnavailable(request.method.rawValue)))
