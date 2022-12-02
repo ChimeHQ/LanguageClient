@@ -2,15 +2,6 @@
   "object": {
     "pins": [
       {
-        "package": "AnyCodable",
-        "repositoryURL": "https://github.com/Flight-School/AnyCodable",
-        "state": {
-          "branch": null,
-          "revision": "b1a7a8a6186f2fcb28f7bda67cfc545de48b3c80",
-          "version": "0.6.2"
-        }
-      },
-      {
         "package": "FSEventsWrapper",
         "repositoryURL": "https://github.com/Frizlab/FSEventsWrapper",
         "state": {
@@ -33,8 +24,8 @@
         "repositoryURL": "https://github.com/ChimeHQ/JSONRPC",
         "state": {
           "branch": null,
-          "revision": "55071da13d109e61584750f39c0941d49711b962",
-          "version": "0.5.0"
+          "revision": "5da978702aece6ba5c7879b0d253c180d61e4ef3",
+          "version": "0.6.0"
         }
       },
       {
@@ -42,8 +33,8 @@
         "repositoryURL": "https://github.com/ChimeHQ/LanguageServerProtocol",
         "state": {
           "branch": null,
-          "revision": "2da23020efce0a092a1f26fb519059800e8ce233",
-          "version": "0.7.6"
+          "revision": "6e97f943dc024307c5524a80bd33cdbd1cc621de",
+          "version": "0.8.0"
         }
       },
       {

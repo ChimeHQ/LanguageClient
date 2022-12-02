@@ -1,7 +1,6 @@
 import Foundation
 import LanguageServerProtocol
 import OperationPlus
-import AnyCodable
 import os.log
 
 public enum InitializingServerError: Error {

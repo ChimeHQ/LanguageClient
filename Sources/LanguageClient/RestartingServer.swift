@@ -1,7 +1,6 @@
 import Foundation
 import os.log
 
-import AnyCodable
 import JSONRPC
 import LanguageServerProtocol
 import OperationPlus
