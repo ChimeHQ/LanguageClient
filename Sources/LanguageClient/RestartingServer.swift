@@ -50,11 +50,15 @@ public class RestartingServer {
         self.serverProvider = { throw RestartingServerError.noProvider }
     }
 
-    public func getCapabilities(_ block: @escaping (LanguageServerProtocol.ServerCapabilities?) -> Void) {
+    public func getCapabilities(_ block: @escaping (ServerCapabilities?) -> Void) {
         queue.addOperation {
             switch self.state {
             case .running(let initServer):
-                initServer.getCapabilities(block)
+				Task {
+					let caps = try? await initServer.capabilities
+
+					block(caps)
+				}
             case .notStarted, .shuttingDown, .stopped, .restartNeeded:
                 block(nil)
             }
@@ -64,7 +68,7 @@ public class RestartingServer {
 	/// Return the capabilities of the server.
 	///
 	/// This will start the server if it is not running.
-	public var capabilities: LanguageServerProtocol.ServerCapabilities {
+	public var capabilities: ServerCapabilities {
 		get async throws {
 			return try await withCheckedThrowingContinuation { continuation in
 				startServerIfNeeded { result in
@@ -127,14 +131,14 @@ public class RestartingServer {
     private func makeNewServer() async throws -> InitializingServer {
         let server = try await serverProvider()
 
-        let initServer = InitializingServer(server: server)
+		let handlers = ServerHandlers(requestHandler: { [weak self] in self?.handleRequest($0, completionHandler: $1) },
+									  notificationHandler: { [weak self] in self?.handleNotification($0, completionHandler: $1) })
 
-        initServer.notificationHandler = { [weak self] in self?.handleNotification($0, completionHandler: $1) }
-        initServer.requestHandler = { [weak self] in self?.handleRequest($0, completionHandler: $1) }
-        initServer.initializeParamsProvider = { [unowned self] in try await self.initializeParamsProvider() }
-        initServer.serverCapabilitiesChangedHandler = { [unowned self] in self.serverCapabilitiesChangedHandler?($0) }
+		let config = InitializingServer.Configuration(initializeParamsProvider: { [unowned self] in try await self.initializeParamsProvider() },
+													  serverCapabilitiesChangedHandler: { [unowned self] in self.serverCapabilitiesChangedHandler?($0) },
+													  handlers: handlers)
 
-        return initServer
+        return InitializingServer(server: server, configuration: config)
     }
 
     private func startNewServer(completionHandler: @escaping (Result<InitializingServer, Error>) -> Void) {
@@ -266,6 +270,11 @@ public class RestartingServer {
 
 @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *)
 extension RestartingServer: Server {
+	public func setHandlers(_ handlers: ServerHandlers, completionHandler: @escaping (ServerError?) -> Void) {
+		self.requestHandler = handlers.requestHandler
+		self.notificationHandler = handlers.notificationHandler
+	}
+
     public func sendNotification(_ notif: ClientNotification, completionHandler: @escaping (ServerError?) -> Void) {
         startServerIfNeeded { result in
             switch result {

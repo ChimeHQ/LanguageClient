@@ -9,7 +9,7 @@ public class LocalProcessServer {
     private let transport: StdioDataTransport
     private let process: Process
     private var wrappedServer: JSONRPCLanguageServer?
-    public var terminationHandler: (() -> Void)?
+	public var terminationHandler: (() -> Void)?
 
     public convenience init(path: String, arguments: [String], environment: [String : String]? = nil) {
         let params = Process.ExecutionParameters(path: path, arguments: arguments, environment: environment)
@@ -49,25 +49,19 @@ public class LocalProcessServer {
         // releasing the server here will short-circuit any pending requests,
         // which might otherwise take a while to time out, if ever.
         wrappedServer = nil
-        terminationHandler?()
+		terminationHandler?()
     }
 
     public var logMessages: Bool {
         get { return wrappedServer?.logMessages ?? false }
-        set { wrappedServer?.logMessages = newValue }
+		set { wrappedServer?.logMessages = newValue }
     }
 }
 
 extension LocalProcessServer: LanguageServerProtocol.Server {
-    public var requestHandler: RequestHandler? {
-        get { return wrappedServer?.requestHandler }
-        set { wrappedServer?.requestHandler = newValue }
-    }
-
-    public var notificationHandler: NotificationHandler? {
-        get { wrappedServer?.notificationHandler }
-        set { wrappedServer?.notificationHandler = newValue }
-    }
+	public func setHandlers(_ handlers: ServerHandlers, completionHandler: @escaping (ServerError?) -> Void) {
+		wrappedServer?.setHandlers(handlers, completionHandler: completionHandler)
+	}
 
     public func sendNotification(_ notif: ClientNotification, completionHandler: @escaping (ServerError?) -> Void) {
         guard let server = wrappedServer, process.isRunning else {

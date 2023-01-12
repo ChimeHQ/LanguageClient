@@ -1,63 +1,62 @@
 import Foundation
-import LanguageServerProtocol
-import OperationPlus
 import os.log
+
+import LanguageServerProtocol
 
 public enum InitializingServerError: Error {
     case noStateProvider
 	case capabilitiesUnavailable
+	case stateInvalid
 }
 
-@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
-public class InitializingServer {
+public actor InitializingServer {
     public typealias InitializeParamsProvider = () async throws -> InitializeParams
     public typealias ServerCapabilitiesChangedHandler = (ServerCapabilities) -> Void
 
-    enum State {
+	public struct Configuration {
+		public var initializeParamsProvider: InitializeParamsProvider
+		public var serverCapabilitiesChangedHandler: ServerCapabilitiesChangedHandler?
+		public var handlers: ServerHandlers
+
+		public init(initializeParamsProvider: @escaping InitializeParamsProvider,
+					serverCapabilitiesChangedHandler: ServerCapabilitiesChangedHandler? = nil,
+					handlers: ServerHandlers = .init()) {
+			self.initializeParamsProvider = initializeParamsProvider
+			self.serverCapabilitiesChangedHandler = serverCapabilitiesChangedHandler
+			self.handlers = handlers
+		}
+	}
+
+	enum State {
         case uninitialized
-        case initializing
+        case initializing(Task<Void, Error>)
         case initialized(ServerCapabilities)
         case shutdown
-
-        var capabilities: ServerCapabilities? {
-            switch self {
-            case .initialized(let caps):
-                return caps
-            case .uninitialized, .shutdown, .initializing:
-                return nil
-            }
-        }
     }
 
     private var wrappedServer: Server
     private var state: State
-    private let queue: OperationQueue
     private var openDocuments: [DocumentUri]
     private let log: OSLog
-    
-    public var initializeParamsProvider: InitializeParamsProvider
-    public var serverCapabilitiesChangedHandler: ServerCapabilitiesChangedHandler?
-    public var defaultTimeout: TimeInterval = 10.0
-    public var requestHandler: RequestHandler?
+	private var configuration: Configuration
 
-    public init(server: Server) {
+	public init(server: Server, configuration: Configuration) {
         self.state = .uninitialized
         self.wrappedServer = server
         self.openDocuments = []
-        self.queue = OperationQueue.serialQueue(named: "com.chimehq.LanguageClient.InitializingServer")
         self.log = OSLog(subsystem: "com.chimehq.LanguageClient", category: "InitializingServer")
 
-        self.initializeParamsProvider = { throw InitializingServerError.noStateProvider }
+		self.configuration = configuration
 
-        wrappedServer.requestHandler = { [unowned self] in self.handleRequest($0, completionHandler: $1) }
+		setHandlers(configuration.handlers)
     }
 
     public func getCapabilities(_ block: @escaping (ServerCapabilities?) -> Void) {
-        queue.addOperation {
-            let caps = self.state.capabilities
+		Task {
+			let caps = try? await self.capabilities
 
-            block(caps)
-        }
+			block(caps)
+		}
     }
 
 	/// Return the capabilities of the server.
@@ -65,164 +64,169 @@ public class InitializingServer {
 	/// This will not start the server, and will throw if it is not running.
 	public var capabilities: ServerCapabilities {
 		get async throws {
-			return try await withCheckedThrowingContinuation { continuation in
-				let op = BlockOperation {
-					guard let caps = self.state.capabilities else {
-						continuation.resume(throwing: InitializingServerError.capabilitiesUnavailable)
-						return
-					}
+			switch state {
+			case .shutdown, .uninitialized:
+				throw InitializingServerError.capabilitiesUnavailable
+			case .initialized(let caps):
+				return caps
+			case .initializing(let task):
+				// if we happen to be mid-initialization, wait for that to complete and try again
+				try await task.value
+			}
 
-					continuation.resume(returning: caps)
-				}
-
-				self.enqueueInitDependantOperation(op)
+			switch state {
+			case .shutdown, .uninitialized:
+				throw InitializingServerError.capabilitiesUnavailable
+			case .initialized(let caps):
+				return caps
+			case .initializing:
+				throw InitializingServerError.stateInvalid
 			}
 		}
 	}
 }
 
-@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
-extension InitializingServer {
-    private func makeInitializationOperation() -> Operation {
-        let initOp = InitializationOperation(server: wrappedServer, initializeParamsProvider: initializeParamsProvider)
-
-        initOp.outputCompletionBlock = { result in
-            // verify we are in the right state here
-            switch self.state {
-            case .initializing:
-                break
-            default:
-                assertionFailure()
-            }
-
-            switch result {
-            case .failure(let error):
-                os_log("failed to initialize: %{public}@", log: self.log, type: .error, String(describing: error))
-
-                self.state = .uninitialized
-            case .success(let response):
-                let caps = response.capabilities
-
-
-                self.state = .initialized(caps)
-
-                self.serverCapabilitiesChangedHandler?(caps)
-            }
-        }
-
-        return initOp
-    }
-
-    private func enqueueInitDependantOperation(_ op: Operation) {
-        queue.addOperation {
-            switch self.state {
-            case .initialized, .initializing, .shutdown:
-                break
-            case .uninitialized:
-                let initOp = self.makeInitializationOperation()
-
-                self.queue.addOperation(initOp)
-
-                op.addDependency(initOp)
-
-                self.state = .initializing
-            }
-
-            self.queue.addOperation(op)
-        }
-    }
-}
-
-@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension InitializingServer: Server {
+	private func updateConfiguration(_ configuration: Configuration) async {
+		let wrappedHandlers = ServerHandlers(requestHandler: { [unowned self] in self.handleRequest($0, completionHandler: $1) },
+											 notificationHandler: configuration.handlers.notificationHandler)
+
+		do {
+			try await wrappedServer.setHandlers(wrappedHandlers)
+		} catch {
+			os_log("failed to update wrapped handlers: %{public}@", log: self.log, type: .error, String(describing: error))
+		}
+
+		self.configuration = configuration
+	}
+
+	public nonisolated func setHandlers(_ handlers: ServerHandlers, completionHandler: @escaping (ServerError?) -> Void) {
+		Task {
+			var config = await configuration
+
+			config.handlers = handlers
+
+			await self.updateConfiguration(config)
+		}
+	}
+
     private func handleRequest(_ request: ServerRequest, completionHandler: @escaping (ServerResult<LSPAny>) -> Void) -> Void {
-        queue.addOperation {
-            guard case .initialized(let caps) = self.state else {
-                assertionFailure("received a request without being initialized")
-                return
-            }
+		Task {
+			do {
+				guard case .initialized(let caps) = self.state else {
+					assertionFailure("received a request without being initialized")
+					throw InitializingServerError.stateInvalid
+				}
 
-            var newCaps = caps
+				guard let handler = self.configuration.handlers.requestHandler else {
+					throw ServerError.handlerUnavailable(request.method.rawValue)
+				}
 
-            do {
-                switch request {
-                case .clientRegisterCapability(let params):
-                    try newCaps.applyRegistrations(params.registrations)
-                case .clientUnregisterCapability(let params):
-                    try newCaps.applyUnregistrations(params.unregistrations)
-                default:
-                    break
-                }
+				var newCaps = caps
 
-                if caps != newCaps {
-                    self.state = .initialized(newCaps)
+				switch request {
+				case .clientRegisterCapability(let params):
+					try newCaps.applyRegistrations(params.registrations)
+				case .clientUnregisterCapability(let params):
+					try newCaps.applyUnregistrations(params.unregistrations)
+				default:
+					break
+				}
 
-                    self.serverCapabilitiesChangedHandler?(newCaps)
-                }
-            } catch {
-                completionHandler(.failure(.requestDispatchFailed(error)))
-                return
-            }
+				if caps != newCaps {
+					self.state = .initialized(newCaps)
 
-            guard let handler = self.requestHandler else {
-                completionHandler(.failure(.handlerUnavailable(request.method.rawValue)))
-                                           return
-            }
+					self.configuration.serverCapabilitiesChangedHandler?(newCaps)
+				}
 
-            handler(request, completionHandler)
-        }
+				handler(request, completionHandler)
+			} catch {
+				if let serverError = error as? ServerError {
+					completionHandler(.failure(serverError))
+				} else {
+					completionHandler(.failure(.requestDispatchFailed(error)))
+				}
+			}
+		}
     }
 
-    public var notificationHandler: NotificationHandler? {
-        get { wrappedServer.notificationHandler }
-        set { wrappedServer.notificationHandler = newValue }
+	private func ensureInitialized() async throws {
+		switch state {
+		case .initialized:
+			return
+		case .initializing(let task):
+			try await task.value
+			return
+		case .uninitialized, .shutdown:
+			break
+		}
+
+		let task = Task {
+			let server = self.wrappedServer
+
+			let params = try await self.configuration.initializeParamsProvider()
+
+			let initResponse = try await server.initialize(params: params)
+
+			try await server.initialized(params: InitializedParams())
+
+			self.state = .initialized(initResponse.capabilities)
+		}
+
+		self.state = .initializing(task)
+
+		try await task.value
+	}
+
+	private func handleShutdown() {
+		self.state = .shutdown
+	}
+
+    public nonisolated func sendNotification(_ notif: ClientNotification, completionHandler: @escaping (ServerError?) -> Void) {
+		if case .initialized = notif {
+			fatalError("Cannot send initialized to InitializingServer")
+		}
+
+		Task {
+			do {
+				try await ensureInitialized()
+
+				try await self.wrappedServer.sendNotification(notif)
+
+				completionHandler(nil)
+			} catch {
+				if let serverError = error as? ServerError {
+					completionHandler(serverError)
+				} else {
+					completionHandler(ServerError.notificationDispatchFailed(error))
+				}
+			}
+		}
     }
 
-    public func sendNotification(_ notif: ClientNotification, timeout: TimeInterval, completionHandler: @escaping (ServerError?) -> Void) {
-        if case .initialized = notif {
-            fatalError("Cannot send initialized to InitializingServer")
-        }
+    public nonisolated func sendRequest<Response>(_ request: ClientRequest, completionHandler: @escaping (ServerResult<Response>) -> Void) where Response : Decodable, Response : Encodable {
+		if case .initialize = request {
+			fatalError("Cannot initialize to InitializingServer")
+		}
 
-        let op = AsyncBlockProducerOperation<ServerError?>(timeout: timeout) { opBlock in
-            // this is pretty subtle, but we have to be very careful to return
-            // the right thing here, as opBlock takes a ServerError??
-            self.wrappedServer.sendNotification(notif) { error in
-                opBlock(.some(error))
-            }
-        }
+		Task {
+			do {
+				try await ensureInitialized()
 
-        op.outputCompletionBlockBehavior = .onTimeOut(ServerError.timeout)
-        op.outputCompletionBlock = completionHandler
+				let response: Response = try await self.wrappedServer.sendRequest(request)
 
-        enqueueInitDependantOperation(op)
-    }
+				if case .shutdown = request {
+					await handleShutdown()
+				}
 
-    public func sendNotification(_ notif: ClientNotification, completionHandler: @escaping (ServerError?) -> Void) {
-        sendNotification(notif, timeout: defaultTimeout, completionHandler: completionHandler)
-    }
-
-    public func sendRequest<Response>(_ request: ClientRequest, timeout: TimeInterval, completionHandler: @escaping (ServerResult<Response>) -> Void) where Response : Decodable, Response : Encodable {
-        if case .initialize = request {
-            fatalError("Cannot initialize to InitializingServer")
-        }
-
-        let op = AsyncBlockProducerOperation<ServerResult<Response>>(timeout: timeout) { opBlock in
-            self.wrappedServer.sendRequest(request, completionHandler: { (result: ServerResult<Response>) in
-                if case .success = result, case .shutdown = request {
-                    self.state = .shutdown
-                }
-
-                opBlock(result)
-            })
-        }
-
-        op.outputCompletionBlockBehavior = .onTimeOut(.failure(ServerError.timeout))
-        op.outputCompletionBlock = completionHandler
-
-        enqueueInitDependantOperation(op)
-    }
-
-    public func sendRequest<Response>(_ request: ClientRequest, completionHandler: @escaping (ServerResult<Response>) -> Void) where Response : Decodable, Response : Encodable {
-        sendRequest(request, timeout: defaultTimeout, completionHandler: completionHandler)
+				completionHandler(.success(response))
+			} catch {
+				if let serverError = error as? ServerError {
+					completionHandler(.failure(serverError))
+				} else {
+					completionHandler(.failure(.requestDispatchFailed(error)))
+				}
+			}
+		}
     }
 }

@@ -4,7 +4,7 @@ import PackageDescription
 
 let package = Package(
     name: "LanguageClient",
-    platforms: [.macOS(.v10_13), .iOS(.v11), .tvOS(.v11), .watchOS(.v4)],
+    platforms: [.macOS(.v10_15), .iOS(.v13), .tvOS(.v13), .watchOS(.v6)],
     products: [
         .library(
             name: "LanguageClient",
@@ -12,7 +12,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/ChimeHQ/OperationPlus", from: "1.6.0"),
-		.package(url: "https://github.com/ChimeHQ/LanguageServerProtocol", from: "0.8.0"),
+		.package(url: "https://github.com/ChimeHQ/LanguageServerProtocol", from: "0.9.0"),
         .package(url: "https://github.com/Frizlab/FSEventsWrapper", from: "1.0.1"),
         .package(url: "https://github.com/Bouke/Glob", from: "1.0.5"),
         .package(url: "https://github.com/ChimeHQ/ProcessEnv", from: "0.3.0"),
