@@ -47,23 +47,18 @@ let executionParams = Process.ExecutionParameters(path: "/usr/bin/sourcekit-lsp"
 
 let localServer = LocalProcessServer(executionParameters: executionParams)
 
-let server = InitializingServer(server: localServer)
-
-let docURL = URL(fileURLWithPath: "/path/to/your/test.swift")
-let projectURL = docURL.deletingLastPathComponent()
-
-server.initializeParamsProvider = {
-    // you may need to fill more of the textDocument field in for completions
+let config = InitializingServer.Configuration(initializeParamsProvider: {
+    // you may need to fill in more of the textDocument field for completions
     // to work, depending on your server
     let capabilities = ClientCapabilities(workspace: nil,
                                           textDocument: nil,
                                           window: nil,
                                           general: nil,
                                           experimental: nil)
-
+   
     // pay careful attention to rootPath/rootURI/workspaceFolders, as different servers will
     // have different expectations/requirements here
-
+   
     return InitializeParams(processId: Int(ProcessInfo.processInfo.processIdentifier),
                             rootPath: nil,
                             rootURI: projectURL.absoluteString,
@@ -71,7 +66,11 @@ server.initializeParamsProvider = {
                             capabilities: capabilities,
                             trace: nil,
                             workspaceFolders: nil)
-}
+})
+let server = InitializingServer(server: localServer, configuration: config)
+
+let docURL = URL(fileURLWithPath: "/path/to/your/test.swift")
+let projectURL = docURL.deletingLastPathComponent()
 
 Task {
     let docContent = try String(contentsOf: docURL)
