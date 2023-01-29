@@ -60,6 +60,7 @@ let config = InitializingServer.Configuration(initializeParamsProvider: {
     // have different expectations/requirements here
    
     return InitializeParams(processId: Int(ProcessInfo.processInfo.processIdentifier),
+                            locale: nil,
                             rootPath: nil,
                             rootURI: projectURL.absoluteString,
                             initializationOptions: nil,
