@@ -21,7 +21,7 @@ public class FileWatcher {
     public var handler: Handler
     private var pathDates: [String : Date]
     private var watchDate: Date
-    private let queue: OperationQueue
+    private let queue = OperationQueue()
 
     public init(root: String, params: FileSystemWatcher) {
         self.root = root
@@ -29,7 +29,9 @@ public class FileWatcher {
         self.lastSet = Set()
         self.pathDates = [:]
         self.watchDate = .distantPast
-        self.queue = OperationQueue(name: "com.chimehq.LanguageClient.FileWatcher", maxConcurrentOperations: 1)
+
+		queue.maxConcurrentOperationCount = 1
+		queue.name = "com.chimehq.LanguageClient.FileWatcher"
 
         handler = { _ in }
     }
