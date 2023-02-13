@@ -87,7 +87,7 @@ public actor InitializingServer {
 
 extension InitializingServer: Server {
 	private func updateConfiguration(_ configuration: Configuration) async {
-		let wrappedHandlers = ServerHandlers(requestHandler: { [unowned self] in self.handleRequest($0, completionHandler: $1) },
+		let wrappedHandlers = ServerHandlers(requestHandler: { [weak self] in self?.handleRequest($0, completionHandler: $1) },
 											 notificationHandler: configuration.handlers.notificationHandler)
 
 		do {
@@ -109,34 +109,10 @@ extension InitializingServer: Server {
 		}
 	}
 
-    private func handleRequest(_ request: ServerRequest, completionHandler: @escaping (ServerResult<LSPAny>) -> Void) -> Void {
+    private nonisolated func handleRequest(_ request: ServerRequest, completionHandler: @escaping (ServerResult<LSPAny>) -> Void) -> Void {
 		Task {
 			do {
-				guard case .initialized(let caps) = self.state else {
-					assertionFailure("received a request without being initialized")
-					throw InitializingServerError.stateInvalid
-				}
-
-				guard let handler = self.configuration.handlers.requestHandler else {
-					throw ServerError.handlerUnavailable(request.method.rawValue)
-				}
-
-				var newCaps = caps
-
-				switch request {
-				case .clientRegisterCapability(let params):
-					try newCaps.applyRegistrations(params.registrations)
-				case .clientUnregisterCapability(let params):
-					try newCaps.applyUnregistrations(params.unregistrations)
-				default:
-					break
-				}
-
-				if caps != newCaps {
-					self.state = .initialized(newCaps)
-
-					self.configuration.serverCapabilitiesChangedHandler?(newCaps)
-				}
+				let handler = try await internalHandleRequest(request)
 
 				handler(request, completionHandler)
 			} catch {
@@ -148,6 +124,36 @@ extension InitializingServer: Server {
 			}
 		}
     }
+
+	private func internalHandleRequest(_ request: ServerRequest) async throws -> Server.RequestHandler {
+		guard let handler = self.configuration.handlers.requestHandler else {
+			throw ServerError.handlerUnavailable(request.method.rawValue)
+		}
+
+		guard case .initialized(let caps) = self.state else {
+			assertionFailure("received a request without being initialized")
+			throw InitializingServerError.stateInvalid
+		}
+
+		var newCaps = caps
+
+		switch request {
+		case .clientRegisterCapability(let params):
+			try newCaps.applyRegistrations(params.registrations)
+		case .clientUnregisterCapability(let params):
+			try newCaps.applyUnregistrations(params.unregistrations)
+		default:
+			break
+		}
+
+		if caps != newCaps {
+			self.state = .initialized(newCaps)
+
+			self.configuration.serverCapabilitiesChangedHandler?(newCaps)
+		}
+
+		return handler
+	}
 
 	private func ensureInitialized() async throws {
 		switch state {
