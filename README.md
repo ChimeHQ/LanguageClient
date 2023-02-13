@@ -98,7 +98,7 @@ Task {
 
 ### RestartingServer
 
-`Server` wrapper that provides both transparent server-side state restoration should the underlying process crash.
+`Server` wrapper that provides transparent server-side state restoration should the underlying process crash.
 
 ### TextPositionTransformer
 

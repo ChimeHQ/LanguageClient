@@ -37,14 +37,13 @@ public actor InitializingServer {
     private var wrappedServer: Server
     private var state: State
     private var openDocuments: [DocumentUri]
-    private let log: OSLog
+	private let log = OSLog(subsystem: "com.chimehq.LanguageClient", category: "InitializingServer")
 	private var configuration: Configuration
 
 	public init(server: Server, configuration: Configuration) {
         self.state = .uninitialized
         self.wrappedServer = server
         self.openDocuments = []
-        self.log = OSLog(subsystem: "com.chimehq.LanguageClient", category: "InitializingServer")
 
 		self.configuration = configuration
 
@@ -162,6 +161,8 @@ extension InitializingServer: Server {
 		}
 
 		let task = Task {
+			os_log("beginning initialization", log: self.log, type: .info)
+
 			let server = self.wrappedServer
 
 			let params = try await self.configuration.initializeParamsProvider()
@@ -178,8 +179,17 @@ extension InitializingServer: Server {
 		try await task.value
 	}
 
-	private func handleShutdown() {
-		self.state = .shutdown
+	private func internalSendNotification(_ notif: ClientNotification) async throws {
+		switch (notif, state) {
+		case (.exit, .shutdown), (.exit, .uninitialized):
+			return
+		default:
+			break
+		}
+
+		try await ensureInitialized()
+
+		try await wrappedServer.sendNotification(notif)
 	}
 
     public nonisolated func sendNotification(_ notif: ClientNotification, completionHandler: @escaping (ServerError?) -> Void) {
@@ -189,9 +199,7 @@ extension InitializingServer: Server {
 
 		Task {
 			do {
-				try await ensureInitialized()
-
-				try await self.wrappedServer.sendNotification(notif)
+				try await self.internalSendNotification(notif)
 
 				completionHandler(nil)
 			} catch {
@@ -204,6 +212,26 @@ extension InitializingServer: Server {
 		}
     }
 
+	private func internalSendRequest<Response: Codable>(_ request: ClientRequest) async throws -> Response {
+		switch (request, state) {
+		case (.shutdown, .uninitialized), (.shutdown, .shutdown):
+			// We do not want to start up a server here
+			return try simulateShutdown()
+		default:
+			break
+		}
+
+		try await ensureInitialized()
+
+		let response: Response = try await self.wrappedServer.sendRequest(request)
+
+		if case .shutdown = request {
+			self.state = .shutdown
+		}
+
+		return response
+	}
+
     public nonisolated func sendRequest<Response>(_ request: ClientRequest, completionHandler: @escaping (ServerResult<Response>) -> Void) where Response : Decodable, Response : Encodable {
 		if case .initialize = request {
 			fatalError("Cannot initialize to InitializingServer")
@@ -211,13 +239,7 @@ extension InitializingServer: Server {
 
 		Task {
 			do {
-				try await ensureInitialized()
-
-				let response: Response = try await self.wrappedServer.sendRequest(request)
-
-				if case .shutdown = request {
-					await handleShutdown()
-				}
+				let response: Response = try await internalSendRequest(request)
 
 				completionHandler(.success(response))
 			} catch {

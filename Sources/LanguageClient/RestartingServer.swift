@@ -11,7 +11,7 @@ public enum RestartingServerError: Error {
     case noTextDocumentForURI(DocumentUri)
 }
 
-/// A `Server` wrapper that provides both transparent server-side state restoration should the underlying process crash.
+/// A `Server` wrapper that provides transparent server-side state restoration should the underlying process crash.
 @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *)
 public actor RestartingServer {
     public typealias ServerProvider = () async throws -> Server
@@ -45,6 +45,14 @@ public actor RestartingServer {
         case running(InitializingServer)
         case shuttingDown
         case stopped(Date)
+
+		var isRunning: Bool {
+			if case .running = self {
+				return true
+			}
+
+			return false
+		}
     }
 
     private var state: State
@@ -95,12 +103,24 @@ public actor RestartingServer {
     }
 
 	public func shutdownAndExit() async throws {
-		guard case .running(let server) = self.state else {
-			throw ServerError.serverUnavailable
-		}
+		switch state {
+		case .notStarted, .shuttingDown, .stopped, .restartNeeded:
+			return
+		case .running(let server):
+			self.state = .shuttingDown
 
-		try await server.shutdown()
-		try await server.exit()
+			self.logger.debug("shutting down")
+
+			try await server.shutdown()
+
+			self.logger.debug("exiting")
+
+			try await server.exit()
+
+			self.logger.info("shutdown and exit complete")
+
+			self.state = .notStarted
+		}
 	}
 
     private func reopenDocuments(for server: Server) async {
@@ -122,6 +142,8 @@ public actor RestartingServer {
     }
 
     private func makeNewServer() async throws -> InitializingServer {
+		self.logger.info("creating server")
+
 		let server = try await configuration.serverProvider()
 
 		let config = InitializingServer.Configuration(initializeParamsProvider: configuration.initializeParamsProvider,
@@ -241,6 +263,11 @@ extension RestartingServer: Server {
 	}
 
 	private func internalSendNotification(_ notif: ClientNotification) async throws {
+		if case .exit = notif, state.isRunning == false {
+			// do not attempt to relay exit to servers that aren't running
+			return
+		}
+		
 		let server = try await startServerIfNeeded()
 
 		processOutboundNotification(notif)
@@ -272,6 +299,10 @@ extension RestartingServer: Server {
     }
 
 	private func internalSendRequest<Response: Codable>(_ request: ClientRequest) async throws -> Response {
+		if case .shutdown = request, state.isRunning == false {
+			return try simulateShutdown()
+		}
+
 		let server = try await startServerIfNeeded()
 
 		do {
