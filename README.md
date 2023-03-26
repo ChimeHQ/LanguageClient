@@ -43,7 +43,7 @@ Setting correct environment variables could be critical for your server. Your pr
 import LanguageClient
 import LanguageServerProtocol
 
-let executionParams = Process.ExecutionParameters(path: "/usr/bin/sourcekit-lsp")
+let executionParams = Process.ExecutionParameters(path: "/usr/bin/sourcekit-lsp", environment: ProcessInfo.processInfo.userEnvironment)
 
 let localServer = LocalProcessServer(executionParameters: executionParams)
 
