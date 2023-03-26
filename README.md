@@ -16,6 +16,12 @@ dependencies: [
 ]
 ```
 
+## Environment
+
+Setting correct environment variables can be critical for a language server. An executable on macOS will **not** inherent the user's shell environment. Capturing shell environment variables is tricky business. Despite its name, `ProcessInfo.processInfo.userEnvironment` captures the `process` environment, not the user's.
+
+If you need help here, check out [ProcessEnv](https://github.com/chimehq/processenv) and [ProcessService](https://github.com/chimeHQ/ProcessService).
+
 ## Classes
 
 ### LocalProcessServer
@@ -32,8 +38,6 @@ processServer.terminationHandler = { print("server exited") }
 // and if you want to observe communications
 processServer.logMessages = true
 ```
-
-Setting correct environment variables could be critical for your server. Your program may not have the same environment as your shell. Capturing shell environment variables is tricky business. If you need help here, check out [ProcessEnv](https://github.com/chimehq/processenv).
 
 ### InitializingServer
 
