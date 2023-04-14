@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(os.log)
 import os.log
+#endif
 
 import LanguageServerProtocol
 
@@ -37,7 +39,9 @@ public actor InitializingServer {
     private var wrappedServer: Server
     private var state: State
     private var openDocuments: [DocumentUri]
+#if canImport(os.log)
 	private let log = OSLog(subsystem: "com.chimehq.LanguageClient", category: "InitializingServer")
+#endif
 	private var configuration: Configuration
 
 	public init(server: Server, configuration: Configuration) {
@@ -93,7 +97,11 @@ extension InitializingServer: Server {
 		do {
 			try await wrappedServer.setHandlers(wrappedHandlers)
 		} catch {
+#if canImport(os.log)
 			os_log("failed to update wrapped handlers: %{public}@", log: self.log, type: .error, String(describing: error))
+#else
+			print("failed to update wrapped handlers: \(error)")
+#endif
 		}
 
 		self.configuration = configuration
@@ -167,7 +175,11 @@ extension InitializingServer: Server {
 		}
 
 		let task = Task {
+#if canImport(os.log)
 			os_log("beginning initialization", log: self.log, type: .info)
+#else
+			print("beginning initialization")
+#endif
 
 			let server = self.wrappedServer
 

@@ -2,7 +2,7 @@ import Foundation
 import LanguageServerProtocol
 import JSONRPC
 
-#if os(macOS)
+#if canImport(ProcessEnv)
 import ProcessEnv
 
 public class LocalProcessServer {

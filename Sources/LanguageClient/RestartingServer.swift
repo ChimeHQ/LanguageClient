@@ -1,23 +1,24 @@
 import Foundation
+#if canImport(os.log)
 import os.log
+#endif
 
-import JSONRPC
 import LanguageServerProtocol
 
 public enum RestartingServerError: Error {
-    case noProvider
-    case serverStopped
-    case noURIMatch(DocumentUri)
-    case noTextDocumentForURI(DocumentUri)
+	case noProvider
+	case serverStopped
+	case noURIMatch(DocumentUri)
+	case noTextDocumentForURI(DocumentUri)
 }
 
 /// A `Server` wrapper that provides transparent server-side state restoration should the underlying process crash.
 @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *)
 public actor RestartingServer {
-    public typealias ServerProvider = () async throws -> Server
-    public typealias TextDocumentItemProvider = (DocumentUri) async throws -> TextDocumentItem
-    public typealias InitializeParamsProvider = InitializingServer.InitializeParamsProvider
-    public typealias ServerCapabilitiesChangedHandler = InitializingServer.ServerCapabilitiesChangedHandler
+	public typealias ServerProvider = () async throws -> Server
+	public typealias TextDocumentItemProvider = (DocumentUri) async throws -> TextDocumentItem
+	public typealias InitializeParamsProvider = InitializingServer.InitializeParamsProvider
+	public typealias ServerCapabilitiesChangedHandler = InitializingServer.ServerCapabilitiesChangedHandler
 
 	public struct Configuration {
 		public var serverProvider: ServerProvider
@@ -39,12 +40,12 @@ public actor RestartingServer {
 		}
 	}
 
-    enum State {
-        case notStarted
-        case restartNeeded
-        case running(InitializingServer)
-        case shuttingDown
-        case stopped(Date)
+	enum State {
+		case notStarted
+		case restartNeeded
+		case running(InitializingServer)
+		case shuttingDown
+		case stopped(Date)
 
 		var isRunning: Bool {
 			if case .running = self {
@@ -53,20 +54,22 @@ public actor RestartingServer {
 
 			return false
 		}
-    }
+	}
 
-    private var state: State
-    private var openDocumentURIs: Set<DocumentUri>
-    private let logger = Logger(subsystem: "com.chimehq.LanguageClient", category: "RestartingServer")
+	private var state: State
+	private var openDocumentURIs: Set<DocumentUri>
+#if canImport(os.log)
+	private let logger = Logger(subsystem: "com.chimehq.LanguageClient", category: "RestartingServer")
+#endif
 	private var configuration: Configuration
 
-    public init(configuration: Configuration) {
-        self.state = .notStarted
-        self.openDocumentURIs = Set()
+	public init(configuration: Configuration) {
+		self.state = .notStarted
+		self.openDocumentURIs = Set()
 		self.configuration = configuration
-    }
+	}
 
-    public func getCapabilities(_ block: @escaping (ServerCapabilities?) -> Void) {
+	public func getCapabilities(_ block: @escaping (ServerCapabilities?) -> Void) {
 		Task {
 			switch self.state {
 			case .running(let initServer):
@@ -77,7 +80,7 @@ public actor RestartingServer {
 				block(nil)
 			}
 		}
-    }
+	}
 
 	/// Return the capabilities of the server.
 	///
@@ -88,7 +91,7 @@ public actor RestartingServer {
 		}
 	}
 
-    public func shutdownAndExit(block: @escaping (ServerError?) -> Void) {
+	public func shutdownAndExit(block: @escaping (ServerError?) -> Void) {
 		Task {
 			do {
 				try await shutdownAndExit()
@@ -100,7 +103,7 @@ public actor RestartingServer {
 				block(ServerError.unableToSendRequest(error))
 			}
 		}
-    }
+	}
 
 	public func shutdownAndExit() async throws {
 		switch state {
@@ -109,25 +112,31 @@ public actor RestartingServer {
 		case .running(let server):
 			self.state = .shuttingDown
 
+#if canImport(os.log)
 			self.logger.debug("shutting down")
+#endif
 
 			try await server.shutdown()
 
+#if canImport(os.log)
 			self.logger.debug("exiting")
-
+#endif
 			try await server.exit()
 
+#if canImport(os.log)
 			self.logger.info("shutdown and exit complete")
-
+#endif
 			self.state = .notStarted
 		}
 	}
 
-    private func reopenDocuments(for server: Server) async {
+	private func reopenDocuments(for server: Server) async {
 		let openURIs = self.openDocumentURIs
 
 		for uri in openURIs {
+#if canImport(os.log)
 			self.logger.info("Trying to reopen document \(uri, privacy: .public)")
+#endif
 
 			do {
 				let item = try await configuration.textDocumentItemProvider(uri)
@@ -136,13 +145,19 @@ public actor RestartingServer {
 
 				try await server.didOpenTextDocument(params: params)
 			} catch {
+#if canImport(os.log)
 				self.logger.error("Failed to reopen document \(uri, privacy: .public): \(error, privacy: .public)")
+#else
+				print("Failed to reopen document: \(uri), \(error)")
+#endif
 			}
 		}
-    }
+	}
 
-    private func makeNewServer() async throws -> InitializingServer {
+	private func makeNewServer() async throws -> InitializingServer {
+#if canImport(os.log)
 		self.logger.info("creating server")
+#endif
 
 		let server = try await configuration.serverProvider()
 
@@ -150,8 +165,8 @@ public actor RestartingServer {
 													  serverCapabilitiesChangedHandler: configuration.serverCapabilitiesChangedHandler,
 													  handlers: configuration.handlers)
 
-        return InitializingServer(server: server, configuration: config)
-    }
+		return InitializingServer(server: server, configuration: config)
+	}
 
 	private func startServerIfNeeded() async throws -> InitializingServer {
 		switch self.state {
@@ -166,31 +181,35 @@ public actor RestartingServer {
 		}
 	}
 
-    private func startNewServerAndAdjustState(reopenDocs: Bool) async throws -> InitializingServer {
+	private func startNewServerAndAdjustState(reopenDocs: Bool) async throws -> InitializingServer {
 		let server = try await makeNewServer()
 
-        self.state = .running(server)
+		self.state = .running(server)
 
 		if reopenDocs {
 			await reopenDocuments(for: server)
 		}
 
 		return server
-    }
+	}
 
-    public nonisolated func serverBecameUnavailable() {
+	public nonisolated func serverBecameUnavailable() {
 		Task {
 			await handleServerBecameUnavailable()
 		}
-    }
+	}
 
 	private func handleServerBecameUnavailable() async {
+#if canImport(os.log)
 		self.logger.info("Server became unavailable")
+#endif
 
 		let date = Date()
 
 		if case .stopped = self.state {
+#if canImport(os.log)
 			self.logger.info("Server is already stopped")
+#endif
 			return
 		}
 
@@ -200,39 +219,41 @@ public actor RestartingServer {
 		try? await Task.sleep(nanoseconds: 5 * NSEC_PER_SEC)
 
 		guard case .stopped = self.state else {
+#if canImport(os.log)
 			self.logger.info("State change during restart: \(String(describing: self.state), privacy: .public)")
+#endif
 			return
 		}
 
 		self.state = .notStarted
 	}
 
-    private func handleDidOpen(_ params: DidOpenTextDocumentParams) {
-        let uri = params.textDocument.uri
+	private func handleDidOpen(_ params: DidOpenTextDocumentParams) {
+		let uri = params.textDocument.uri
 
-        assert(openDocumentURIs.contains(uri) == false)
+		assert(openDocumentURIs.contains(uri) == false)
 
-        self.openDocumentURIs.insert(uri)
-    }
+		self.openDocumentURIs.insert(uri)
+	}
 
-    private func handleDidClose(_ params: DidCloseTextDocumentParams) {
-        let uri = params.textDocument.uri
+	private func handleDidClose(_ params: DidCloseTextDocumentParams) {
+		let uri = params.textDocument.uri
 
-        assert(openDocumentURIs.contains(uri))
+		assert(openDocumentURIs.contains(uri))
 
-        openDocumentURIs.remove(uri)
-    }
+		openDocumentURIs.remove(uri)
+	}
 
-    private func processOutboundNotification(_ notification: ClientNotification) {
-        switch notification {
-        case .didOpenTextDocument(let params):
-            self.handleDidOpen(params)
-        case .didCloseTextDocument(let params):
-            self.handleDidClose(params)
-        default:
-            break
-        }
-    }
+	private func processOutboundNotification(_ notification: ClientNotification) {
+		switch notification {
+		case .didOpenTextDocument(let params):
+			self.handleDidOpen(params)
+		case .didCloseTextDocument(let params):
+			self.handleDidClose(params)
+		default:
+			break
+		}
+	}
 }
 
 @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *)
@@ -280,23 +301,31 @@ extension RestartingServer: Server {
 		}
 	}
 
-    public nonisolated func sendNotification(_ notif: ClientNotification, completionHandler: @escaping (ServerError?) -> Void) {
+	public nonisolated func sendNotification(_ notif: ClientNotification, completionHandler: @escaping (ServerError?) -> Void) {
 		Task {
 			do {
 				try await internalSendNotification(notif)
 
 				completionHandler(nil)
 			} catch let error as ServerError {
+#if canImport(os.log)
 				self.logger.error("Unable to get server to send notification \(notif.method.rawValue, privacy: .public): \(error, privacy: .public)")
+#else
+				print("Unable to get server to send notification \(notif.method), \(error)")
+#endif
 
 				completionHandler(error)
 			} catch {
+#if canImport(os.log)
 				self.logger.error("Unable to get server to send notification \(notif.method.rawValue, privacy: .public): \(error, privacy: .public)")
+#else
+				print("Unable to get server to send notification \(notif.method), \(error)")
+#endif
 
 				completionHandler(ServerError.notificationDispatchFailed(error))
 			}
 		}
-    }
+	}
 
 	private func internalSendRequest<Response: Codable>(_ request: ClientRequest) async throws -> Response {
 		if case .shutdown = request, state.isRunning == false {
@@ -313,21 +342,29 @@ extension RestartingServer: Server {
 		}
 	}
 
-    public nonisolated func sendRequest<Response: Codable>(_ request: ClientRequest, completionHandler: @escaping (ServerResult<Response>) -> Void) {
+	public nonisolated func sendRequest<Response: Codable>(_ request: ClientRequest, completionHandler: @escaping (ServerResult<Response>) -> Void) {
 		Task {
 			do {
 				let response: Response = try await internalSendRequest(request)
 
 				completionHandler(.success(response))
 			} catch let error as ServerError {
+#if canImport(os.log)
 				self.logger.error("Unable to get server to send request \(request.method.rawValue, privacy: .public): \(error, privacy: .public)")
+#else
+				print("Unable to get server to send request \(request.method), \(error)")
+#endif
 
 				completionHandler(.failure(error))
 			} catch {
+#if canImport(os.log)
 				self.logger.error("Unable to get server to send request \(request.method.rawValue, privacy: .public): \(error, privacy: .public)")
+#else
+				print("Unable to get server to send request \(request.method), \(error)")
+#endif
 
 				completionHandler(.failure(.unableToSendRequest(error)))
 			}
 		}
-    }
+	}
 }
