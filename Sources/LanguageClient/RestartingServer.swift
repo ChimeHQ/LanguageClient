@@ -309,17 +309,17 @@ extension RestartingServer: Server {
 				completionHandler(nil)
 			} catch let error as ServerError {
 #if canImport(os.log)
-				self.logger.error("Unable to get server to send notification \(notif.method.rawValue, privacy: .public): \(error, privacy: .public)")
+				self.logger.error("Failed to send notification \(notif.method.rawValue, privacy: .public): \(error, privacy: .public)")
 #else
-				print("Unable to get server to send notification \(notif.method), \(error)")
+				print("Failed to send notification \(notif.method), \(error)")
 #endif
 
 				completionHandler(error)
 			} catch {
 #if canImport(os.log)
-				self.logger.error("Unable to get server to send notification \(notif.method.rawValue, privacy: .public): \(error, privacy: .public)")
+				self.logger.error("Failed to send notification \(notif.method.rawValue, privacy: .public): \(error, privacy: .public)")
 #else
-				print("Unable to get server to send notification \(notif.method), \(error)")
+				print("Failed to send notification \(notif.method), \(error)")
 #endif
 
 				completionHandler(ServerError.notificationDispatchFailed(error))
@@ -350,17 +350,17 @@ extension RestartingServer: Server {
 				completionHandler(.success(response))
 			} catch let error as ServerError {
 #if canImport(os.log)
-				self.logger.error("Unable to get server to send request \(request.method.rawValue, privacy: .public): \(error, privacy: .public)")
+				self.logger.error("Failed to send request \(request.method.rawValue, privacy: .public): \(error, privacy: .public)")
 #else
-				print("Unable to get server to send request \(request.method), \(error)")
+				print("Failed to send request \(request.method), \(error)")
 #endif
 
 				completionHandler(.failure(error))
 			} catch {
 #if canImport(os.log)
-				self.logger.error("Unable to get server to send request \(request.method.rawValue, privacy: .public): \(error, privacy: .public)")
+				self.logger.error("Failed to send request \(request.method.rawValue, privacy: .public): \(error, privacy: .public)")
 #else
-				print("Unable to get server to send request \(request.method), \(error)")
+				print("Failed to send request \(request.method), \(error)")
 #endif
 
 				completionHandler(.failure(.unableToSendRequest(error)))
