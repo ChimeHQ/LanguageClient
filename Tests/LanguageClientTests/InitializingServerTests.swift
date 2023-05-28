@@ -109,4 +109,18 @@ final class InitializingServerTests: XCTestCase {
 
 		XCTAssertEqual(response?.range, LSPRange(startPair: (0, 0), endPair: (0, 1)))
 	}
+
+	func testSetHandlers() async throws {
+		let mockServer = MockServer()
+		let server = InitializingServer(server: mockServer, configuration: .init(initializeParamsProvider: { throw ServerError.missingExpectedParameter }))
+
+		let exp = expectation(description: "called completion")
+		Task {
+			server.setHandlers(.init()) { error in
+				exp.fulfill()
+			}
+		}
+
+		await fulfillment(of: [exp], timeout: 1.0)
+	}
 }

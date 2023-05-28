@@ -114,6 +114,8 @@ extension InitializingServer: Server {
 			config.handlers = handlers
 
 			await self.updateConfiguration(config)
+
+			completionHandler(nil)
 		}
 	}
 
