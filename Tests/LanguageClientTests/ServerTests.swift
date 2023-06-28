@@ -6,6 +6,7 @@ enum ServerTestError: Error {
 	case unsupported
 }
 
+#if compiler(>=5.9)
 final class ServerTests: XCTestCase {
 	typealias Server = RestartingServer<MockServer>
 
@@ -84,3 +85,4 @@ final class ServerTests: XCTestCase {
 		XCTAssertNotNil(caps2?.semanticTokensProvider)
 	}
 }
+#endif

@@ -9,6 +9,7 @@ enum LocalProcessServerError: Error {
 	case processUnavailable
 }
 
+#if compiler(>=5.9)
 extension DataChannel {
 	public static func localProcessChannel(parameters: Process.ExecutionParameters) throws -> DataChannel {
 		let process = Process()
@@ -144,5 +145,6 @@ extension LocalProcessServer: Server {
 		return try await channel.sendRequest(request)
 	}
 }
+#endif
 
 #endif

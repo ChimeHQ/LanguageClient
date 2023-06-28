@@ -12,6 +12,7 @@ enum InitializingServerError: Error {
 	case stateInvalid
 }
 
+#if compiler(>=5.9)
 /// Server implementation that lazily initializes another Server on first message.
 ///
 /// Provides special handling for `shutdown` and `exit` messages.
@@ -134,7 +135,7 @@ extension InitializingServer: StatefulServer {
 			break
 		}
 
-		try await initializeIfNeeded()
+		_ = try await initializeIfNeeded()
 
 		try await channel.sendNotification(notif)
 	}
@@ -152,7 +153,7 @@ extension InitializingServer: StatefulServer {
 			break
 		}
 
-		try await initializeIfNeeded()
+		_ = try await initializeIfNeeded()
 
 		return try await channel.sendRequest(request)
 	}
@@ -211,3 +212,4 @@ extension InitializingServer {
 		}
 	}
 }
+#endif

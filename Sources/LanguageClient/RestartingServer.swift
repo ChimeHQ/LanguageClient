@@ -13,6 +13,7 @@ enum RestartingServerError: Error {
 	case noTextDocumentForURI(DocumentUri)
 }
 
+#if compiler(>=5.9)
 /// A `Server` wrapper that provides transparent server-side state restoration should the underlying process crash.
 public actor RestartingServer<WrappedServer: Server & Sendable> {
 	public typealias ServerProvider = @Sendable () async throws -> WrappedServer
@@ -273,3 +274,4 @@ extension RestartingServer: StatefulServer {
 		return try await server.sendRequest(request)
 	}
 }
+#endif

@@ -1,5 +1,6 @@
 import Foundation
 
+#if compiler(>=5.9)
 /// Maintains a consistent external `AsyncStream` as interal source streams are changed.
 public actor AsyncStreamTap<Element: Sendable> {
 	public typealias Stream = AsyncStream<Element>
@@ -29,3 +30,4 @@ public actor AsyncStreamTap<Element: Sendable> {
 		}
 	}
 }
+#endif
