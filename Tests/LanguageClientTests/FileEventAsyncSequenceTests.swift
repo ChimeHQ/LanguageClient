@@ -2,6 +2,9 @@ import XCTest
 import LanguageClient
 import LanguageServerProtocol
 
+#if canImport(FSEventsWrapper) && canImport(GlobPattern)
+
+#if compiler(>=5.9)
 final class FileEventAsyncSequenceTests: XCTestCase {
 	func testCreateEvent() async throws {
 		let watcher = FileSystemWatcher(globPattern: "*/create_test", kind: [.all])
@@ -37,3 +40,6 @@ final class FileEventAsyncSequenceTests: XCTestCase {
 		XCTAssertEqual(FileEvent(uri: testFileURL.absoluteString, type: .created), event)
 	}
 }
+#endif
+
+#endif
