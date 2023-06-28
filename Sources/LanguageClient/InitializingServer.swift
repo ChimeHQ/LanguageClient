@@ -3,203 +3,130 @@ import Foundation
 import os.log
 #endif
 
+import Semaphore
 import LanguageServerProtocol
 
-public enum InitializingServerError: Error {
-    case noStateProvider
+enum InitializingServerError: Error {
+	case noStateProvider
 	case capabilitiesUnavailable
 	case stateInvalid
 }
 
+/// Server implementation that lazily initializes another Server on first message.
+///
+/// Provides special handling for `shutdown` and `exit` messages.
+///
+/// Also exposes an `AsyncSequence` of `ServerCapabilities`, and manages its changes as the server registers and deregisters capabilities.
 public actor InitializingServer {
-    public typealias InitializeParamsProvider = () async throws -> InitializeParams
-    public typealias ServerCapabilitiesChangedHandler = (ServerCapabilities) -> Void
+	public typealias InitializeParamsProvider = @Sendable () async throws -> InitializeParams
 
-	public struct Configuration {
-		public var initializeParamsProvider: InitializeParamsProvider
-		public var serverCapabilitiesChangedHandler: ServerCapabilitiesChangedHandler?
-		public var handlers: ServerHandlers
+	private enum State {
+		case uninitialized
+		case initialized(ServerCapabilities)
+		case shutdown
 
-		public init(initializeParamsProvider: @escaping InitializeParamsProvider,
-					serverCapabilitiesChangedHandler: ServerCapabilitiesChangedHandler? = nil,
-					handlers: ServerHandlers = .init()) {
-			self.initializeParamsProvider = initializeParamsProvider
-			self.serverCapabilitiesChangedHandler = serverCapabilitiesChangedHandler
-			self.handlers = handlers
+		var capabilities: ServerCapabilities? {
+			get {
+				switch self {
+				case .initialized(let capabilities):
+					return capabilities
+				case .uninitialized, .shutdown:
+					return nil
+				}
+			}
+			set {
+				guard let caps = newValue else {
+					fatalError()
+				}
+
+				switch self {
+				case .initialized:
+					self = .initialized(caps)
+				case .uninitialized, .shutdown:
+					break
+				}
+			}
 		}
 	}
 
-	enum State {
-        case uninitialized
-        case initializing(Task<Void, Error>)
-        case initialized(ServerCapabilities)
-        case shutdown
-    }
+	private let channel: Server
+	private var state = State.uninitialized
+	private let semaphore = AsyncSemaphore(value: 1)
+	private let requestStreamTap = AsyncStreamTap<ServerRequest>()
+	private let initializeParamsProvider: InitializeParamsProvider
+	private let capabilitiesContinuation: StatefulServer.CapabilitiesSequence.Continuation
 
-    private var wrappedServer: Server
-    private var state: State
-    private var openDocuments: [DocumentUri]
-#if canImport(os.log)
-	private let log = OSLog(subsystem: "com.chimehq.LanguageClient", category: "InitializingServer")
-#endif
-	private var configuration: Configuration
+	public let notificationSequence: NotificationSequence
+	public let capabilitiesSequence: CapabilitiesSequence
 
-	public init(server: Server, configuration: Configuration) {
-        self.state = .uninitialized
-        self.wrappedServer = server
-        self.openDocuments = []
+	public init(server: Server, initializeParamsProvider: @escaping InitializeParamsProvider) {
+		self.channel = server
+		self.initializeParamsProvider = initializeParamsProvider
+		self.notificationSequence = channel.notificationSequence
+		(self.capabilitiesSequence, self.capabilitiesContinuation) = CapabilitiesSequence.makeStream()
 
-		self.configuration = configuration
-
-		setHandlers(configuration.handlers)
-    }
-
-    public func getCapabilities(_ block: @escaping (ServerCapabilities?) -> Void) {
 		Task {
-			let caps = try? await self.capabilities
-
-			block(caps)
+			await startMonitoringServer()
 		}
-    }
+	}
+
+	deinit {
+		capabilitiesContinuation.finish()
+	}
+
+	private func startMonitoringServer() async {
+		await requestStreamTap.setInputStream(channel.requestSequence) { [weak self] in
+			await self?.handleRequest($0)
+		}
+	}
 
 	/// Return the capabilities of the server.
 	///
-	/// This will not start the server, and will throw if it is not running.
-	public var capabilities: ServerCapabilities {
-		get async throws {
-			switch state {
-			case .shutdown, .uninitialized:
-				throw InitializingServerError.capabilitiesUnavailable
-			case .initialized(let caps):
-				return caps
-			case .initializing(let task):
-				// if we happen to be mid-initialization, wait for that to complete and try again
-				try await task.value
+	/// This will not start the server if it isn't already running.
+	public var capabilities: ServerCapabilities? {
+		get async {
+			do {
+				try await semaphore.waitUnlessCancelled()
+			} catch {
+				return nil
 			}
 
-			switch state {
-			case .shutdown, .uninitialized:
-				throw InitializingServerError.capabilitiesUnavailable
-			case .initialized(let caps):
-				return caps
-			case .initializing:
-				throw InitializingServerError.stateInvalid
-			}
+			defer { semaphore.signal() }
+
+			return state.capabilities
 		}
 	}
 }
 
-extension InitializingServer: Server {
-	private func updateConfiguration(_ configuration: Configuration) async {
-		let wrappedHandlers = ServerHandlers(requestHandler: { [weak self] in self?.handleRequest($0, completionHandler: $1) },
-											 notificationHandler: configuration.handlers.notificationHandler)
+extension InitializingServer: StatefulServer {
+	public func shutdownAndExit() async throws {
+		await semaphore.wait()
+		defer { semaphore.signal() }
 
-		do {
-			try await wrappedServer.setHandlers(wrappedHandlers)
-		} catch {
-#if canImport(os.log)
-			os_log("failed to update wrapped handlers: %{public}@", log: self.log, type: .error, String(describing: error))
-#else
-			print("failed to update wrapped handlers: \(error)")
-#endif
-		}
+		guard case .initialized = state else { return }
 
-		self.configuration = configuration
+		try await channel.shutdown()
+
+		// re-check our state
+		guard case .initialized = state else { return }
+
+		self.state = .shutdown
+
+		try await channel.exit()
+
+		// unconditionally set our state after an exit, even though we can assume that connectionInvalidated will be called
+		connectionInvalidated()
 	}
 
-	public nonisolated func setHandlers(_ handlers: ServerHandlers, completionHandler: @escaping (ServerError?) -> Void) {
-		Task {
-			var config = await configuration
-
-			config.handlers = handlers
-
-			await self.updateConfiguration(config)
-
-			completionHandler(nil)
-		}
+	public func connectionInvalidated() {
+		self.state = .uninitialized
 	}
 
-    private nonisolated func handleRequest(_ request: ServerRequest, completionHandler: @escaping (ServerResult<LSPAny>) -> Void) -> Void {
-		Task {
-			do {
-				let handler = try await internalHandleRequest(request)
-
-				handler(request, completionHandler)
-			} catch {
-				if let serverError = error as? ServerError {
-					completionHandler(.failure(serverError))
-				} else {
-					completionHandler(.failure(.requestDispatchFailed(error)))
-				}
-			}
-		}
-    }
-
-	private func internalHandleRequest(_ request: ServerRequest) async throws -> Server.RequestHandler {
-		guard let handler = self.configuration.handlers.requestHandler else {
-			throw ServerError.handlerUnavailable(request.method.rawValue)
-		}
-
-		guard case .initialized(let caps) = self.state else {
-			assertionFailure("received a request without being initialized")
-			throw InitializingServerError.stateInvalid
-		}
-
-		var newCaps = caps
-
-		switch request {
-		case .clientRegisterCapability(let params):
-			try newCaps.applyRegistrations(params.registrations)
-		case .clientUnregisterCapability(let params):
-			try newCaps.applyUnregistrations(params.unregistrations)
-		default:
-			break
-		}
-
-		if caps != newCaps {
-			self.state = .initialized(newCaps)
-
-			self.configuration.serverCapabilitiesChangedHandler?(newCaps)
-		}
-
-		return handler
+	public nonisolated var requestSequence: RequestSequence {
+		requestStreamTap.stream
 	}
 
-	private func ensureInitialized() async throws {
-		switch state {
-		case .initialized:
-			return
-		case .initializing(let task):
-			try await task.value
-			return
-		case .uninitialized, .shutdown:
-			break
-		}
-
-		let task = Task {
-#if canImport(os.log)
-			os_log("beginning initialization", log: self.log, type: .info)
-#else
-			print("beginning initialization")
-#endif
-
-			let server = self.wrappedServer
-
-			let params = try await self.configuration.initializeParamsProvider()
-
-			let initResponse = try await server.initialize(params: params)
-
-			try await server.initialized(params: InitializedParams())
-
-			self.state = .initialized(initResponse.capabilities)
-		}
-
-		self.state = .initializing(task)
-
-		try await task.value
-	}
-
-	private func internalSendNotification(_ notif: ClientNotification) async throws {
+	public func sendNotification(_ notif: LanguageServerProtocol.ClientNotification) async throws {
 		switch (notif, state) {
 		case (.exit, .shutdown), (.exit, .uninitialized):
 			return
@@ -207,32 +134,16 @@ extension InitializingServer: Server {
 			break
 		}
 
-		try await ensureInitialized()
+		try await initializeIfNeeded()
 
-		try await wrappedServer.sendNotification(notif)
+		try await channel.sendNotification(notif)
 	}
 
-    public nonisolated func sendNotification(_ notif: ClientNotification, completionHandler: @escaping (ServerError?) -> Void) {
-		if case .initialized = notif {
-			fatalError("Cannot send initialized to InitializingServer")
+	public func sendRequest<Response>(_ request: LanguageServerProtocol.ClientRequest) async throws -> Response where Response : Decodable, Response : Sendable {
+		if case .initialize = request {
+			fatalError("Cannot initialize to InitializingServer")
 		}
 
-		Task {
-			do {
-				try await self.internalSendNotification(notif)
-
-				completionHandler(nil)
-			} catch {
-				if let serverError = error as? ServerError {
-					completionHandler(serverError)
-				} else {
-					completionHandler(ServerError.notificationDispatchFailed(error))
-				}
-			}
-		}
-    }
-
-	private func internalSendRequest<Response: Codable>(_ request: ClientRequest) async throws -> Response {
 		switch (request, state) {
 		case (.shutdown, .uninitialized), (.shutdown, .shutdown):
 			// We do not want to start up a server here
@@ -241,34 +152,62 @@ extension InitializingServer: Server {
 			break
 		}
 
-		try await ensureInitialized()
+		try await initializeIfNeeded()
 
-		let response: Response = try await self.wrappedServer.sendRequest(request)
+		return try await channel.sendRequest(request)
+	}
+}
 
-		if case .shutdown = request {
-			self.state = .shutdown
+extension InitializingServer {
+	/// Run the initialization sequence with the server, if it has not already happened.
+	public func initializeIfNeeded() async throws -> ServerCapabilities {
+		switch state {
+		case .initialized(let caps):
+			return caps
+		case .uninitialized, .shutdown:
+			try await semaphore.waitUnlessCancelled()
 		}
 
-		return response
+		defer { semaphore.signal() }
+
+		let params = try await initializeParamsProvider()
+
+		let initResponse = try await channel.initialize(params: params)
+		let caps = initResponse.capabilities
+
+		try await channel.initialized(params: InitializedParams())
+
+		self.state = .initialized(caps)
+
+		capabilitiesContinuation.yield(caps)
+
+		return caps
 	}
 
-    public nonisolated func sendRequest<Response>(_ request: ClientRequest, completionHandler: @escaping (ServerResult<Response>) -> Void) where Response : Decodable, Response : Encodable {
-		if case .initialize = request {
-			fatalError("Cannot initialize to InitializingServer")
+	private func handleRequest(_ request: ServerRequest) {
+		guard case .initialized(let caps) = self.state else {
+			fatalError("received a request without being initialized")
 		}
 
-		Task {
-			do {
-				let response: Response = try await internalSendRequest(request)
+		var newCaps = caps
 
-				completionHandler(.success(response))
-			} catch {
-				if let serverError = error as? ServerError {
-					completionHandler(.failure(serverError))
-				} else {
-					completionHandler(.failure(.requestDispatchFailed(error)))
-				}
+		do {
+			switch request {
+			case .clientRegisterCapability(let params, _):
+				try newCaps.applyRegistrations(params.registrations)
+			case .clientUnregisterCapability(let params, _):
+				try newCaps.applyUnregistrations(params.unregistrations)
+			default:
+				break
 			}
+		} catch {
+			print("unable to mutate server capabilities: \(error)")
 		}
-    }
+
+		if caps != newCaps {
+			self.state = .initialized(newCaps)
+
+			capabilitiesContinuation.yield(newCaps)
+		}
+	}
 }

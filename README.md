@@ -6,27 +6,15 @@
 
 This is a Swift library for abstracting and interacting with language servers that implement the [Language Server Protocol](https://microsoft.github.io/language-server-protocol/). It is built on top of the [LanguageServerProtocol](https://github.com/ChimeHQ/LanguageServerProtocol) library.
 
-## Integration
+## General Design
 
-### Swift Package Manager
-
-```swift
-dependencies: [
-    .package(url: "https://github.com/ChimeHQ/LanguageClient")
-]
-```
-
-## Environment
-
-Setting correct environment variables can be critical for a language server. An executable on macOS will **not** inherent the user's shell environment. Capturing shell environment variables is tricky business. Despite its name, `ProcessInfo.processInfo.userEnvironment` captures the `process` environment, not the user's.
-
-If you need help here, check out [ProcessEnv](https://github.com/chimehq/processenv) and [ProcessService](https://github.com/chimeHQ/ProcessService).
+This library is all based around the `Server` protocol from the LanguageServerProtocol library. The idea is to wrap up and expose progressively more-complex behavior. This helps to keep things manageable, while also offering lower-complexity types for less-demanding needs. It was also just the first thing I tried that worked out reasonably well.
 
 ## Classes
 
 ### LocalProcessServer
 
-This class manages a locally-running LSP process.
+This class manages a locally-running language server process.
 
 ```swift
 let params = Process.ExecutionParameters(path: "/path/to/server-executable",
@@ -51,7 +39,7 @@ let executionParams = Process.ExecutionParameters(path: "/usr/bin/sourcekit-lsp"
 
 let localServer = LocalProcessServer(executionParameters: executionParams)
 
-let config = InitializingServer.Configuration(initializeParamsProvider: {
+let provider: InitializingServer.InitializeParamsProvider = {
     // you may need to fill in more of the textDocument field for completions
     // to work, depending on your server
     let capabilities = ClientCapabilities(workspace: nil,
@@ -71,8 +59,8 @@ let config = InitializingServer.Configuration(initializeParamsProvider: {
                             capabilities: capabilities,
                             trace: nil,
                             workspaceFolders: nil)
-})
-let server = InitializingServer(server: localServer, configuration: config)
+}
+let server = InitializingServer(server: localServer, initializeParamsProvider: provider)
 
 let docURL = URL(fileURLWithPath: "/path/to/your/test.swift")
 let projectURL = docURL.deletingLastPathComponent()
@@ -102,15 +90,21 @@ Task {
 
 ### RestartingServer
 
-`Server` wrapper that provides transparent server-side state restoration should the underlying process crash.
+`Server` wrapper that provides transparent server-side state restoration should the underlying process crash. It uses `InitializingServer` internally.
 
-### TextPositionTransformer
+### FileEventAsyncSequence
 
-A protocol useful for translating between `NSRange` and LSP's line-relative positioning system.
+An `AsyncSequence` that uses FS events and glob patterns to handle `DidChangeWatchedFiles`. It is available only for macOS.
 
-### FileWatcher
+## Environment
 
-A utility class that uses FS events and glob patterns to handle `DidChangeWatchedFiles`.
+Setting correct environment variables can be critical for a language server. An executable on macOS will **not** inherent the user's shell environment. Capturing shell environment variables is tricky business. Despite its name, `ProcessInfo.processInfo.userEnvironment` captures the `process` environment, not the user's.
+
+If you need help here, check out [ProcessEnv](https://github.com/chimehq/processenv) and [ProcessService](https://github.com/chimeHQ/ProcessService).
+
+## Message Ordering
+
+The Language Server protocol is stateful. Some message types are order-dependent. This is something you must be aware of when working with `async` methods. I have found a queue to be essential. Here's [one](https://github.com/mattmassicotte/Queue), if you find yourself looking.
 
 ## Suggestions or Feedback
 

@@ -3,25 +3,33 @@ name: CI
 on:
   push:
     branches:
-      - '*'
+      - main
   pull_request:
     branches:
-      - main
+      - '**'
 
 env:
-  DEVELOPER_DIR: /Applications/Xcode_14.3.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_15.0.app/Contents/Developer
 
 jobs:
-  test:
+  apple_test:
     name: Test
     runs-on: macOS-13
     strategy:
       matrix:
         destination:
           - "platform=macOS"
-          - "platform=iOS Simulator,name=iPhone 11"
+          - "platform=iOS Simulator,name=iPhone 12"
 
     steps:
       - uses: actions/checkout@v3
       - name: Test platform ${{ matrix.destination }}
         run: set -o pipefail && xcodebuild -scheme LanguageClient -destination "${{ matrix.destination }}" test | xcpretty
+
+  linux_test:
+    name: Test Linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: swift test
+        run: swift test

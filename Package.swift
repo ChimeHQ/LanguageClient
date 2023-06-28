@@ -2,31 +2,41 @@
 
 import PackageDescription
 
+let settings: [SwiftSetting] = [
+	// .unsafeFlags(["-Xfrontend", "-strict-concurrency=complete"])
+]
+
 let package = Package(
-    name: "LanguageClient",
-	platforms: [.macOS(.v10_15), .iOS(.v13), .tvOS(.v13), .watchOS(.v6)],
-    products: [
-        .library(
-            name: "LanguageClient",
-            targets: ["LanguageClient"]),
-    ],
-    dependencies: [
-		.package(url: "https://github.com/ChimeHQ/LanguageServerProtocol", from: "0.9.1"),
-        .package(url: "https://github.com/Frizlab/FSEventsWrapper", from: "1.0.1"),
-        .package(url: "https://github.com/Bouke/Glob", from: "1.0.5"),
-        .package(url: "https://github.com/ChimeHQ/ProcessEnv", from: "0.3.0"),
-    ],
-    targets: [
-        .target(
-            name: "LanguageClient",
-            dependencies: [
-                .product(name: "LanguageServerProtocol", package: "LanguageServerProtocol", condition: nil),
-                .product(name: "ProcessEnv", package: "ProcessEnv", condition: .when(platforms: [.macOS])),
-                .product(name: "FSEventsWrapper", package: "FSEventsWrapper", condition: .when(platforms: [.macOS])),
-                .product(name: "Glob", package: "Glob", condition: .when(platforms: [.macOS])),
-            ]),
+	name: "LanguageClient",
+	platforms: [.macOS(.v11), .iOS(.v14), .tvOS(.v14), .watchOS(.v7)],
+	products: [
+		.library(
+			name: "LanguageClient",
+			targets: ["LanguageClient"]),
+	],
+	dependencies: [
+		.package(url: "https://github.com/ChimeHQ/LanguageServerProtocol", revision: "a218d19ea3342c7a5cc11850ce7bb3cb1c4f6c84"),
+		.package(url: "https://github.com/mattmassicotte/FSEventsWrapper", revision: "fb3c520c936d8d3ed69da08e7f1a67516bbd411a"),
+		.package(url: "https://github.com/ChimeHQ/GlobPattern", from: "0.1.1"),
+		.package(url: "https://github.com/ChimeHQ/ProcessEnv", from: "0.3.0"),
+		.package(url: "https://github.com/groue/Semaphore", from: "0.0.8"),
+		.package(url: "https://github.com/mattmassicotte/Queue", from: "0.1.3"),
+	],
+	targets: [
+		.target(
+			name: "LanguageClient",
+			dependencies: [
+				"LanguageServerProtocol",
+				.product(name: "ProcessEnv", package: "ProcessEnv", condition: .when(platforms: [.macOS])),
+				.product(name: "FSEventsWrapper", package: "FSEventsWrapper", condition: .when(platforms: [.macOS])),
+				.product(name: "GlobPattern", package: "GlobPattern", condition: .when(platforms: [.macOS])),
+				"Queue",
+				"Semaphore",
+			],
+			swiftSettings: settings),
 		.testTarget(
 			name: "LanguageClientTests",
-			dependencies: ["LanguageClient"])
-    ]
+			dependencies: ["LanguageClient"],
+			swiftSettings: settings)
+	]
 )

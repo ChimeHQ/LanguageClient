@@ -3,12 +3,11 @@ import Foundation
 import LanguageServerProtocol
 
 extension Server {
+	/// This function will always attempt to decode "null".
+	///
+	/// We don't know the generic type of the return. So, we have to emulate.
 	func simulateShutdown<Response: Decodable>() throws -> Response {
-		// We do not want to start up a server here. But, we don't know the
-		// genertic type of the return. So, we have to emulate.
 		let data = "null".data(using: .utf8)!
-		let placeholder = try JSONDecoder().decode(Response.self, from: data)
-
-		return placeholder
+		return try JSONDecoder().decode(Response.self, from: data)
 	}
 }

@@ -3,20 +3,20 @@
     "pins": [
       {
         "package": "FSEventsWrapper",
-        "repositoryURL": "https://github.com/Frizlab/FSEventsWrapper",
+        "repositoryURL": "https://github.com/mattmassicotte/FSEventsWrapper",
         "state": {
           "branch": null,
-          "revision": "e0c59a2ce2775e5f6642da6d19207445f10112d0",
-          "version": "1.0.2"
+          "revision": "fb3c520c936d8d3ed69da08e7f1a67516bbd411a",
+          "version": null
         }
       },
       {
-        "package": "Glob",
-        "repositoryURL": "https://github.com/Bouke/Glob",
+        "package": "GlobPattern",
+        "repositoryURL": "https://github.com/ChimeHQ/GlobPattern",
         "state": {
           "branch": null,
-          "revision": "deda6e163d2ff2a8d7e138e2c3326dbd71157faf",
-          "version": "1.0.5"
+          "revision": "4ebb9e89e07cc475efa74f87dc6d21f4a9e060f8",
+          "version": "0.1.1"
         }
       },
       {
@@ -24,8 +24,8 @@
         "repositoryURL": "https://github.com/ChimeHQ/JSONRPC",
         "state": {
           "branch": null,
-          "revision": "afc20d00e38674774f84edc325424a32ae3b9e01",
-          "version": "0.7.0"
+          "revision": "306acbe0de2e87e4f6c1dc3901613aa9df293754",
+          "version": null
         }
       },
       {
@@ -33,8 +33,8 @@
         "repositoryURL": "https://github.com/ChimeHQ/LanguageServerProtocol",
         "state": {
           "branch": null,
-          "revision": "192bcfdcf7a013da49c6fa1b95de66254ce7c614",
-          "version": "0.9.1"
+          "revision": "a218d19ea3342c7a5cc11850ce7bb3cb1c4f6c84",
+          "version": null
         }
       },
       {
@@ -42,8 +42,26 @@
         "repositoryURL": "https://github.com/ChimeHQ/ProcessEnv",
         "state": {
           "branch": null,
-          "revision": "7bcb6c11593be08456f48042fad1a7bf875f217a",
-          "version": "0.3.0"
+          "revision": "29487b6581bb785c372c611c943541ef4309d051",
+          "version": "0.3.1"
+        }
+      },
+      {
+        "package": "Queue",
+        "repositoryURL": "https://github.com/mattmassicotte/Queue",
+        "state": {
+          "branch": null,
+          "revision": "2e0d7a71f7fd61e9f3d2b745bcc5e020dc70f311",
+          "version": "0.1.3"
+        }
+      },
+      {
+        "package": "Semaphore",
+        "repositoryURL": "https://github.com/groue/Semaphore",
+        "state": {
+          "branch": null,
+          "revision": "f1c4a0acabeb591068dea6cffdd39660b86dec28",
+          "version": "0.0.8"
         }
       }
     ]

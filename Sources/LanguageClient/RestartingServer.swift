@@ -1,11 +1,12 @@
 import Foundation
-#if canImport(os.log)
-import os.log
+#if canImport(OSLog)
+import OSLog
 #endif
 
+import Semaphore
 import LanguageServerProtocol
 
-public enum RestartingServerError: Error {
+enum RestartingServerError: Error {
 	case noProvider
 	case serverStopped
 	case noURIMatch(DocumentUri)
@@ -13,34 +14,26 @@ public enum RestartingServerError: Error {
 }
 
 /// A `Server` wrapper that provides transparent server-side state restoration should the underlying process crash.
-@available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *)
-public actor RestartingServer {
-	public typealias ServerProvider = () async throws -> Server
-	public typealias TextDocumentItemProvider = (DocumentUri) async throws -> TextDocumentItem
+public actor RestartingServer<WrappedServer: Server & Sendable> {
+	public typealias ServerProvider = @Sendable () async throws -> WrappedServer
+	public typealias TextDocumentItemProvider = @Sendable (DocumentUri) async throws -> TextDocumentItem
 	public typealias InitializeParamsProvider = InitializingServer.InitializeParamsProvider
-	public typealias ServerCapabilitiesChangedHandler = InitializingServer.ServerCapabilitiesChangedHandler
 
-	public struct Configuration {
+	public struct Configuration: Sendable {
 		public var serverProvider: ServerProvider
 		public var initializeParamsProvider: InitializeParamsProvider
-		public var serverCapabilitiesChangedHandler: ServerCapabilitiesChangedHandler?
 		public var textDocumentItemProvider: TextDocumentItemProvider
-		public var handlers: ServerHandlers
 
 		public init(serverProvider: @escaping ServerProvider,
 					textDocumentItemProvider: @escaping TextDocumentItemProvider,
-					initializeParamsProvider: @escaping InitializeParamsProvider,
-					serverCapabilitiesChangedHandler: ServerCapabilitiesChangedHandler? = nil,
-					handlers: ServerHandlers = .init()) {
+					initializeParamsProvider: @escaping InitializeParamsProvider) {
 			self.serverProvider = serverProvider
 			self.textDocumentItemProvider = textDocumentItemProvider
 			self.initializeParamsProvider = initializeParamsProvider
-			self.serverCapabilitiesChangedHandler = serverCapabilitiesChangedHandler
-			self.handlers = handlers
 		}
 	}
 
-	enum State {
+	private enum State {
 		case notStarted
 		case restartNeeded
 		case running(InitializingServer)
@@ -56,12 +49,17 @@ public actor RestartingServer {
 		}
 	}
 
+	private let semaphore = AsyncSemaphore(value: 1)
 	private var state: State
 	private var openDocumentURIs: Set<DocumentUri>
-#if canImport(os.log)
+	private let configuration: Configuration
+#if canImport(OSLog)
 	private let logger = Logger(subsystem: "com.chimehq.LanguageClient", category: "RestartingServer")
 #endif
-	private var configuration: Configuration
+
+	private let requestStreamTap = AsyncStreamTap<ServerRequest>()
+	private let notificationStreamTap = AsyncStreamTap<ServerNotification>()
+	private let capabilitiesStreamTap = AsyncStreamTap<ServerCapabilities>()
 
 	public init(configuration: Configuration) {
 		self.state = .notStarted
@@ -69,73 +67,54 @@ public actor RestartingServer {
 		self.configuration = configuration
 	}
 
-	public func getCapabilities(_ block: @escaping (ServerCapabilities?) -> Void) {
-		Task {
-			switch self.state {
-			case .running(let initServer):
-				let caps = try? await initServer.capabilities
-
-				block(caps)
-			case .notStarted, .shuttingDown, .stopped, .restartNeeded:
-				block(nil)
-			}
-		}
-	}
-
 	/// Return the capabilities of the server.
 	///
-	/// This will start the server if it is not running.
-	public var capabilities: ServerCapabilities {
-		get async throws {
-			return try await startServerIfNeeded().capabilities
-		}
-	}
-
-	public func shutdownAndExit(block: @escaping (ServerError?) -> Void) {
-		Task {
-			do {
-				try await shutdownAndExit()
-
-				block(nil)
-			} catch let error as ServerError {
-				block(error)
-			} catch {
-				block(ServerError.unableToSendRequest(error))
+	/// This will not start the server if it isn't already running.
+	public var capabilities: ServerCapabilities? {
+		get async {
+			switch state {
+			case .running(let server):
+				return await server.capabilities
+			case .notStarted, .shuttingDown, .stopped, .restartNeeded:
+				return nil
 			}
 		}
 	}
 
 	public func shutdownAndExit() async throws {
+		await semaphore.wait()
+		defer { semaphore.signal() }
+
 		switch state {
 		case .notStarted, .shuttingDown, .stopped, .restartNeeded:
 			return
 		case .running(let server):
+#if canImport(OSLog)
+			logger.debug("shutting down")
+#endif
+
 			self.state = .shuttingDown
 
-#if canImport(os.log)
-			self.logger.debug("shutting down")
-#endif
-
-			try await server.shutdown()
+			try await server.shutdownAndExit()
 
 #if canImport(os.log)
-			self.logger.debug("exiting")
-#endif
-			try await server.exit()
-
-#if canImport(os.log)
-			self.logger.info("shutdown and exit complete")
+			logger.info("shutdown and exit complete")
 #endif
 			self.state = .notStarted
 		}
 	}
 
-	private func reopenDocuments(for server: Server) async {
+	/// Run the initialization sequence with the server, if it has not already happened.
+	public func initializeIfNeeded() async throws -> ServerCapabilities {
+		try await startServerIfNeeded().initializeIfNeeded()
+	}
+
+	private func reopenDocuments(for server: InitializingServer) async {
 		let openURIs = self.openDocumentURIs
 
 		for uri in openURIs {
-#if canImport(os.log)
-			self.logger.info("Trying to reopen document \(uri, privacy: .public)")
+#if canImport(OSLog)
+			logger.info("Trying to reopen document \(uri, privacy: .public)")
 #endif
 
 			do {
@@ -145,8 +124,8 @@ public actor RestartingServer {
 
 				try await server.didOpenTextDocument(params: params)
 			} catch {
-#if canImport(os.log)
-				self.logger.error("Failed to reopen document \(uri, privacy: .public): \(error, privacy: .public)")
+#if canImport(OSLog)
+				logger.error("Failed to reopen document \(uri, privacy: .public): \(error, privacy: .public)")
 #else
 				print("Failed to reopen document: \(uri), \(error)")
 #endif
@@ -154,21 +133,28 @@ public actor RestartingServer {
 		}
 	}
 
+	private func startMonitoringServer(_ server: InitializingServer) async {
+		await requestStreamTap.setInputStream(server.requestSequence)
+		await notificationStreamTap.setInputStream(server.notificationSequence)
+		await capabilitiesStreamTap.setInputStream(server.capabilitiesSequence)
+	}
+
 	private func makeNewServer() async throws -> InitializingServer {
 #if canImport(os.log)
-		self.logger.info("creating server")
+		logger.info("creating server")
 #endif
 
 		let server = try await configuration.serverProvider()
+		let provider = configuration.initializeParamsProvider
 
-		let config = InitializingServer.Configuration(initializeParamsProvider: configuration.initializeParamsProvider,
-													  serverCapabilitiesChangedHandler: configuration.serverCapabilitiesChangedHandler,
-													  handlers: configuration.handlers)
-
-		return InitializingServer(server: server, configuration: config)
+		// I believe the Sendability warning about `server` here is incorrect (this has been confirmed as a compiler bug)
+		return InitializingServer(server: server, initializeParamsProvider: provider)
 	}
 
 	private func startServerIfNeeded() async throws -> InitializingServer {
+		await semaphore.wait()
+		defer { semaphore.signal() }
+
 		switch self.state {
 		case .notStarted:
 			return try await startNewServerAndAdjustState(reopenDocs: false)
@@ -185,47 +171,13 @@ public actor RestartingServer {
 		let server = try await makeNewServer()
 
 		self.state = .running(server)
+		await startMonitoringServer(server)
 
 		if reopenDocs {
 			await reopenDocuments(for: server)
 		}
 
 		return server
-	}
-
-	public nonisolated func serverBecameUnavailable() {
-		Task {
-			await handleServerBecameUnavailable()
-		}
-	}
-
-	private func handleServerBecameUnavailable() async {
-#if canImport(os.log)
-		self.logger.info("Server became unavailable")
-#endif
-
-		let date = Date()
-
-		if case .stopped = self.state {
-#if canImport(os.log)
-			self.logger.info("Server is already stopped")
-#endif
-			return
-		}
-
-		self.state = .stopped(date)
-
-		// this sleep is here just to throttle rate of restarting
-		try? await Task.sleep(nanoseconds: 5 * NSEC_PER_SEC)
-
-		guard case .stopped = self.state else {
-#if canImport(os.log)
-			self.logger.info("State change during restart: \(String(describing: self.state), privacy: .public)")
-#endif
-			return
-		}
-
-		self.state = .notStarted
 	}
 
 	private func handleDidOpen(_ params: DidOpenTextDocumentParams) {
@@ -256,115 +208,68 @@ public actor RestartingServer {
 	}
 }
 
-@available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *)
-extension RestartingServer: Server {
-	private func updateConfiguration(_ handlers: ServerHandlers) async throws {
-		self.configuration.handlers = handlers
+extension RestartingServer: StatefulServer {
+	public func connectionInvalidated() async {
+#if canImport(OSLog)
+		logger.info("Server became unavailable")
+#endif
 
-		switch state {
-		case .running(let server):
-			try await server.setHandlers(handlers)
-		case .notStarted, .restartNeeded, .shuttingDown, .stopped:
-			break
+		let date = Date()
+
+		if case .stopped = self.state {
+#if canImport(OSLog)
+			logger.info("Server is already stopped")
+#endif
+			return
 		}
+
+		self.state = .stopped(date)
+
+		// this sleep is here just to throttle rate of restarting
+		try? await Task.sleep(nanoseconds: 5 * NSEC_PER_SEC)
+
+		guard case .stopped = self.state else {
+#if canImport(OSLog)
+			logger.info("State change during restart: \(String(describing: self.state), privacy: .public)")
+#endif
+			return
+		}
+
+		self.state = .notStarted
 	}
 
-	public nonisolated func setHandlers(_ handlers: ServerHandlers, completionHandler: @escaping (ServerError?) -> Void) {
-		Task {
-			do {
-				try await updateConfiguration(handlers)
-
-				completionHandler(nil)
-			} catch let error as ServerError {
-				completionHandler(error)
-			} catch {
-				completionHandler(ServerError.unableToSendRequest(error))
-			}
-		}
+	public nonisolated var notificationSequence: NotificationSequence {
+		notificationStreamTap.stream
 	}
 
-	private func internalSendNotification(_ notif: ClientNotification) async throws {
+	public nonisolated var requestSequence: RequestSequence {
+		requestStreamTap.stream
+	}
+
+	public nonisolated var capabilitiesSequence: CapabilitiesSequence {
+		capabilitiesStreamTap.stream
+	}
+
+	public func sendNotification(_ notif: ClientNotification) async throws {
 		if case .exit = notif, state.isRunning == false {
 			// do not attempt to relay exit to servers that aren't running
 			return
 		}
-		
+
 		let server = try await startServerIfNeeded()
 
 		processOutboundNotification(notif)
 
-		do {
-			try await server.sendNotification(notif)
-		} catch ServerError.serverUnavailable {
-			await handleServerBecameUnavailable()
-			throw ServerError.serverUnavailable
-		}
+		try await server.sendNotification(notif)
 	}
 
-	public nonisolated func sendNotification(_ notif: ClientNotification, completionHandler: @escaping (ServerError?) -> Void) {
-		Task {
-			do {
-				try await internalSendNotification(notif)
-
-				completionHandler(nil)
-			} catch let error as ServerError {
-#if canImport(os.log)
-				self.logger.error("Failed to send notification \(notif.method.rawValue, privacy: .public): \(error, privacy: .public)")
-#else
-				print("Failed to send notification \(notif.method), \(error)")
-#endif
-
-				completionHandler(error)
-			} catch {
-#if canImport(os.log)
-				self.logger.error("Failed to send notification \(notif.method.rawValue, privacy: .public): \(error, privacy: .public)")
-#else
-				print("Failed to send notification \(notif.method), \(error)")
-#endif
-
-				completionHandler(ServerError.notificationDispatchFailed(error))
-			}
-		}
-	}
-
-	private func internalSendRequest<Response: Codable>(_ request: ClientRequest) async throws -> Response {
+	public func sendRequest<Response>(_ request: ClientRequest) async throws -> Response where Response : Decodable, Response : Sendable {
 		if case .shutdown = request, state.isRunning == false {
 			return try simulateShutdown()
 		}
 
 		let server = try await startServerIfNeeded()
 
-		do {
-			return try await server.sendRequest(request)
-		} catch ServerError.serverUnavailable {
-			await handleServerBecameUnavailable()
-			throw ServerError.serverUnavailable
-		}
-	}
-
-	public nonisolated func sendRequest<Response: Codable>(_ request: ClientRequest, completionHandler: @escaping (ServerResult<Response>) -> Void) {
-		Task {
-			do {
-				let response: Response = try await internalSendRequest(request)
-
-				completionHandler(.success(response))
-			} catch let error as ServerError {
-#if canImport(os.log)
-				self.logger.error("Failed to send request \(request.method.rawValue, privacy: .public): \(error, privacy: .public)")
-#else
-				print("Failed to send request \(request.method), \(error)")
-#endif
-
-				completionHandler(.failure(error))
-			} catch {
-#if canImport(os.log)
-				self.logger.error("Failed to send request \(request.method.rawValue, privacy: .public): \(error, privacy: .public)")
-#else
-				print("Failed to send request \(request.method), \(error)")
-#endif
-
-				completionHandler(.failure(.unableToSendRequest(error)))
-			}
-		}
+		return try await server.sendRequest(request)
 	}
 }
