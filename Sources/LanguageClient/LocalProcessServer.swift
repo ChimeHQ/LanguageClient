@@ -32,6 +32,8 @@ extension DataChannel {
 			for await data in dataChannel.dataSequence {
 				continuation.yield(data)
 			}
+
+			continuation.finish()
 		}
 
 		try process.run()
