@@ -33,7 +33,7 @@
         "repositoryURL": "https://github.com/ChimeHQ/LanguageServerProtocol",
         "state": {
           "branch": null,
-          "revision": "a218d19ea3342c7a5cc11850ce7bb3cb1c4f6c84",
+          "revision": "84f1f70b828a993325f408e8e9da6222713702b0",
           "version": null
         }
       },
@@ -51,8 +51,8 @@
         "repositoryURL": "https://github.com/mattmassicotte/Queue",
         "state": {
           "branch": null,
-          "revision": "2e0d7a71f7fd61e9f3d2b745bcc5e020dc70f311",
-          "version": "0.1.3"
+          "revision": "8d6f936097888f97011610ced40313655dc5948d",
+          "version": "0.1.4"
         }
       },
       {

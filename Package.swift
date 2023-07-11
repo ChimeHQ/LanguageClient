@@ -15,12 +15,12 @@ let package = Package(
 			targets: ["LanguageClient"]),
 	],
 	dependencies: [
-		.package(url: "https://github.com/ChimeHQ/LanguageServerProtocol", revision: "a218d19ea3342c7a5cc11850ce7bb3cb1c4f6c84"),
+		.package(url: "https://github.com/ChimeHQ/LanguageServerProtocol", revision: "84f1f70b828a993325f408e8e9da6222713702b0"),
 		.package(url: "https://github.com/mattmassicotte/FSEventsWrapper", revision: "fb3c520c936d8d3ed69da08e7f1a67516bbd411a"),
 		.package(url: "https://github.com/ChimeHQ/GlobPattern", from: "0.1.1"),
 		.package(url: "https://github.com/ChimeHQ/ProcessEnv", from: "0.3.0"),
 		.package(url: "https://github.com/groue/Semaphore", from: "0.0.8"),
-		.package(url: "https://github.com/mattmassicotte/Queue", from: "0.1.3"),
+		.package(url: "https://github.com/mattmassicotte/Queue", from: "0.1.4"),
 	],
 	targets: [
 		.target(
