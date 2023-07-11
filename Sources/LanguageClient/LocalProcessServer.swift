@@ -115,11 +115,6 @@ public actor LocalProcessServer {
 		await notificationStreamTap.setInputStream(channel.notificationSequence)
 		await requestStreamTap.setInputStream(channel.requestSequence)
 	}
-	
-//    public var logMessages: Bool {
-//        get { return wrappedServer?.logMessages ?? false }
-//		set { wrappedServer?.logMessages = newValue }
-//    }
 }
 
 extension LocalProcessServer: Server {
