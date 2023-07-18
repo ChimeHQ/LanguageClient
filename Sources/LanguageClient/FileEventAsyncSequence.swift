@@ -5,41 +5,6 @@ import LanguageServerProtocol
 import FSEventsWrapper
 import GlobPattern
 
-struct FSEventAsyncStream: AsyncSequence {
-	typealias Element = FSEvent
-
-	struct FSEventAsyncIterator: AsyncIteratorProtocol {
-		private let eventStream: FSEventStream?
-		private var streamIterator: AsyncStream<FSEvent>.Iterator
-
-		init(path: String, flags: FSEventStreamCreateFlags) {
-			let (stream, continuation) = AsyncStream<FSEvent>.makeStream()
-
-			self.eventStream = FSEventStream(path: path, fsEventStreamFlags: flags) { _, event in
-				continuation.yield(event)
-			}
-
-			self.streamIterator = stream.makeAsyncIterator()
-			self.eventStream!.startWatching()
-
-			if eventStream == nil {
-				continuation.finish()
-			}
-		}
-
-		public mutating func next() async -> FSEvent? {
-			await streamIterator.next()
-		}
-	}
-
-	let path: String
-	let flags: FSEventStreamCreateFlags
-
-	func makeAsyncIterator() -> FSEventAsyncIterator {
-		FSEventAsyncIterator(path: path, flags: flags)
-	}
-}
-
 extension FSEvent {
 	var pathTypePair: (String, FileChangeType)? {
 		switch self {

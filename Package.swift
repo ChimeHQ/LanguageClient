@@ -16,7 +16,7 @@ let package = Package(
 	],
 	dependencies: [
 		.package(url: "https://github.com/ChimeHQ/LanguageServerProtocol", revision: "84f1f70b828a993325f408e8e9da6222713702b0"),
-		.package(url: "https://github.com/mattmassicotte/FSEventsWrapper", revision: "fb3c520c936d8d3ed69da08e7f1a67516bbd411a"),
+		.package(url: "https://github.com/mattmassicotte/FSEventsWrapper", revision: "af75bf2c0aca1d6c6473557afb58c7737f53c762"),
 		.package(url: "https://github.com/ChimeHQ/GlobPattern", from: "0.1.1"),
 		.package(url: "https://github.com/ChimeHQ/ProcessEnv", from: "0.3.0"),
 		.package(url: "https://github.com/groue/Semaphore", from: "0.0.8"),
