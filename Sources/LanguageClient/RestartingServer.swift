@@ -231,7 +231,7 @@ extension RestartingServer: StatefulServer {
 
 		guard case .stopped = self.state else {
 #if canImport(OSLog)
-			logger.info("State change during restart: \(String(describing: self.state), privacy: .public)")
+			logger.warning("State change during restart: \(String(describing: self.state), privacy: .public)")
 #endif
 			return
 		}

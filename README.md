@@ -10,21 +10,18 @@ This is a Swift library for abstracting and interacting with language servers th
 
 This library is all based around the `Server` protocol from the LanguageServerProtocol library. The idea is to wrap up and expose progressively more-complex behavior. This helps to keep things manageable, while also offering lower-complexity types for less-demanding needs. It was also just the first thing I tried that worked out reasonably well.
 
-## Classes
+## Usage
 
-### LocalProcessServer
+### Local Process
 
-This class manages a locally-running language server process.
+This is how you run a local server with not extra funtionality. It uses an extension on the [JSONRPC](https://github.com/ChimeHQ/JSONRPC) `DataChannel` type to start up and communicate with a long-running process.
 
 ```swift
 let params = Process.ExecutionParameters(path: "/path/to/server-executable",
                                          arguments: [],
                                          environment: [])
-let processServer = LocalProcessServer(executionParameters: params)
-processServer.terminationHandler = { print("server exited") }
-
-// and if you want to observe communications
-processServer.logMessages = true
+let channel = DataChannel.localProcessChannel(parameters: params, terminationHandler: { print("terminated") })
+let server = JSONRPCServer(dataChannel: channel)
 ```
 
 ### InitializingServer
@@ -37,7 +34,8 @@ import LanguageServerProtocol
 
 let executionParams = Process.ExecutionParameters(path: "/usr/bin/sourcekit-lsp", environment: ProcessInfo.processInfo.userEnvironment)
 
-let localServer = LocalProcessServer(executionParameters: executionParams)
+let channel = DataChannel.localProcessChannel(parameters: executionParams, terminationHandler: { print("terminated") })
+let localServer = JSONRPCServer(dataChannel: channel)
 
 let provider: InitializingServer.InitializeParamsProvider = {
     // you may need to fill in more of the textDocument field for completions

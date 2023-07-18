@@ -3,7 +3,7 @@
 import PackageDescription
 
 let settings: [SwiftSetting] = [
-	// .unsafeFlags(["-Xfrontend", "-strict-concurrency=complete"])
+//	 .unsafeFlags(["-Xfrontend", "-strict-concurrency=complete"])
 ]
 
 let package = Package(
@@ -15,9 +15,10 @@ let package = Package(
 			targets: ["LanguageClient"]),
 	],
 	dependencies: [
-		.package(url: "https://github.com/ChimeHQ/LanguageServerProtocol", revision: "84f1f70b828a993325f408e8e9da6222713702b0"),
-		.package(url: "https://github.com/mattmassicotte/FSEventsWrapper", revision: "af75bf2c0aca1d6c6473557afb58c7737f53c762"),
+		.package(url: "https://github.com/ChimeHQ/LanguageServerProtocol", revision: "6f05c1b2cc8b3afad83c7cba310b3338199780af"),
+		.package(url: "https://github.com/mattmassicotte/FSEventsWrapper", branch: "feature/asyncstream"),
 		.package(url: "https://github.com/ChimeHQ/GlobPattern", from: "0.1.1"),
+		.package(url: "https://github.com/ChimeHQ/JSONRPC", revision: "42e5e5dd5aace3885d705f6fad50e60ad4cc3c69"),
 		.package(url: "https://github.com/ChimeHQ/ProcessEnv", from: "0.3.0"),
 		.package(url: "https://github.com/groue/Semaphore", from: "0.0.8"),
 		.package(url: "https://github.com/mattmassicotte/Queue", from: "0.1.4"),
@@ -26,10 +27,11 @@ let package = Package(
 		.target(
 			name: "LanguageClient",
 			dependencies: [
-				"LanguageServerProtocol",
-				.product(name: "ProcessEnv", package: "ProcessEnv", condition: .when(platforms: [.macOS])),
 				.product(name: "FSEventsWrapper", package: "FSEventsWrapper", condition: .when(platforms: [.macOS])),
 				.product(name: "GlobPattern", package: "GlobPattern", condition: .when(platforms: [.macOS])),
+				"JSONRPC",
+				"LanguageServerProtocol",
+				.product(name: "ProcessEnv", package: "ProcessEnv", condition: .when(platforms: [.macOS])),
 				"Queue",
 				"Semaphore",
 			],
