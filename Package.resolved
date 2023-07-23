@@ -3,11 +3,11 @@
     "pins": [
       {
         "package": "FSEventsWrapper",
-        "repositoryURL": "https://github.com/mattmassicotte/FSEventsWrapper",
+        "repositoryURL": "https://github.com/Frizlab/FSEventsWrapper",
         "state": {
-          "branch": "feature/asyncstream",
-          "revision": "22b2062fca2dc64be8722b28a2bf6fd27986c655",
-          "version": null
+          "branch": null,
+          "revision": "70bbea4b108221fcabfce8dbced8502831c0ae04",
+          "version": "2.1.0"
         }
       },
       {
@@ -24,8 +24,8 @@
         "repositoryURL": "https://github.com/ChimeHQ/JSONRPC",
         "state": {
           "branch": null,
-          "revision": "42e5e5dd5aace3885d705f6fad50e60ad4cc3c69",
-          "version": null
+          "revision": "5f48cfdc1c4ce70cd50d996a95ee60d26aa72fee",
+          "version": "0.8.0"
         }
       },
       {
@@ -33,8 +33,8 @@
         "repositoryURL": "https://github.com/ChimeHQ/LanguageServerProtocol",
         "state": {
           "branch": null,
-          "revision": "6f05c1b2cc8b3afad83c7cba310b3338199780af",
-          "version": null
+          "revision": "a244efe43ac7a42577b4afd9ccc43b5223c7f18d",
+          "version": "0.10.0"
         }
       },
       {
