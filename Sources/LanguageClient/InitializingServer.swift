@@ -5,6 +5,7 @@ import os.log
 
 import Semaphore
 import LanguageServerProtocol
+import LanguageServerProtocol_Client
 
 enum InitializingServerError: Error {
 	case noStateProvider
@@ -12,7 +13,6 @@ enum InitializingServerError: Error {
 	case stateInvalid
 }
 
-#if compiler(>=5.9)
 /// Server implementation that lazily initializes another Server on first message.
 ///
 /// Provides special handling for `shutdown` and `exit` messages.
@@ -212,4 +212,3 @@ extension InitializingServer {
 		}
 	}
 }
-#endif

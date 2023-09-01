@@ -5,6 +5,7 @@ import OSLog
 
 import Semaphore
 import LanguageServerProtocol
+import LanguageServerProtocol_Client
 
 enum RestartingServerError: Error {
 	case noProvider
@@ -13,7 +14,6 @@ enum RestartingServerError: Error {
 	case noTextDocumentForURI(DocumentUri)
 }
 
-#if compiler(>=5.9)
 /// A `Server` wrapper that provides transparent server-side state restoration should the underlying process crash.
 public actor RestartingServer<WrappedServer: Server & Sendable> {
 	public typealias ServerProvider = @Sendable () async throws -> WrappedServer
@@ -121,9 +121,9 @@ public actor RestartingServer<WrappedServer: Server & Sendable> {
 			do {
 				let item = try await configuration.textDocumentItemProvider(uri)
 
-				let params = DidOpenTextDocumentParams(textDocument: item)
+				let params = TextDocumentDidOpenParams(textDocument: item)
 
-				try await server.didOpenTextDocument(params: params)
+				try await server.textDocumentDidOpen(params: params)
 			} catch {
 #if canImport(OSLog)
 				logger.error("Failed to reopen document \(uri, privacy: .public): \(error, privacy: .public)")
@@ -181,7 +181,7 @@ public actor RestartingServer<WrappedServer: Server & Sendable> {
 		return server
 	}
 
-	private func handleDidOpen(_ params: DidOpenTextDocumentParams) {
+	private func handleDidOpen(_ params: TextDocumentDidOpenParams) {
 		let uri = params.textDocument.uri
 
 		assert(openDocumentURIs.contains(uri) == false)
@@ -189,7 +189,7 @@ public actor RestartingServer<WrappedServer: Server & Sendable> {
 		self.openDocumentURIs.insert(uri)
 	}
 
-	private func handleDidClose(_ params: DidCloseTextDocumentParams) {
+	private func handleDidClose(_ params: TextDocumentDidCloseParams) {
 		let uri = params.textDocument.uri
 
 		assert(openDocumentURIs.contains(uri))
@@ -199,9 +199,9 @@ public actor RestartingServer<WrappedServer: Server & Sendable> {
 
 	private func processOutboundNotification(_ notification: ClientNotification) {
 		switch notification {
-		case .didOpenTextDocument(let params):
+		case .textDocumentDidOpen(let params):
 			self.handleDidOpen(params)
-		case .didCloseTextDocument(let params):
+		case .textDocumentDidClose(let params):
 			self.handleDidClose(params)
 		default:
 			break
@@ -274,4 +274,3 @@ extension RestartingServer: StatefulServer {
 		return try await server.sendRequest(request)
 	}
 }
-#endif

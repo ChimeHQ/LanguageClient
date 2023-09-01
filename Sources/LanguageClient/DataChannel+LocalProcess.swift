@@ -5,8 +5,6 @@ import JSONRPC
 #if canImport(ProcessEnv)
 import ProcessEnv
 
-#if compiler(>=5.9)
-
 extension FileHandle {
 	public var dataStream: AsyncStream<Data> {
 		let (stream, continuation) = AsyncStream<Data>.makeStream()
@@ -85,6 +83,5 @@ extension DataChannel {
 		return DataChannel(writeHandler: handler, dataSequence: stream)
 	}
 }
-#endif
 
 #endif

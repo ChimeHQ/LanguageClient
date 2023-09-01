@@ -45,10 +45,10 @@ let provider: InitializingServer.InitializeParamsProvider = {
                                           window: nil,
                                           general: nil,
                                           experimental: nil)
-   
+
     // pay careful attention to rootPath/rootURI/workspaceFolders, as different servers will
     // have different expectations/requirements here
-   
+
     return InitializeParams(processId: Int(ProcessInfo.processInfo.processIdentifier),
                             locale: nil,
                             rootPath: nil,
@@ -70,9 +70,9 @@ Task {
                                languageId: .swift,
                                version: 1,
                                text: docContent)
-    let docParams = DidOpenTextDocumentParams(textDocument: doc)
+    let docParams = textDocumentDidOpenParams(textDocument: doc)
 
-    try await server.didOpenTextDocument(params: docParams)
+    try await server.textDocumentDidOpen(params: docParams)
 
     // make sure to pick a reasonable position within your test document
     let pos = Position(line: 5, character: 25)
