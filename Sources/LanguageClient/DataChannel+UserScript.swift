@@ -45,10 +45,8 @@ extension DataChannel {
 		// Forward stdout to the data channel
 		Task {
 			let dataStream = stdoutPipe.fileHandleForReading.dataStream
-			let byteStream = AsyncByteSequence(base: dataStream)
-			let framedData = AsyncMessageFramingSequence(base: byteStream)
 
-			for try await data in framedData {
+			for try await data in dataStream {
 				continuation.yield(data)
 			}
 
