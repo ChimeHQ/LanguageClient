@@ -58,8 +58,7 @@ public actor RestartingServer<WrappedServer: Server & Sendable> {
 	private let logger = Logger(subsystem: "com.chimehq.LanguageClient", category: "RestartingServer")
 #endif
 
-	private let requestStreamTap = AsyncStreamTap<ServerRequest>()
-	private let notificationStreamTap = AsyncStreamTap<ServerNotification>()
+	private let eventStreamTap = AsyncStreamTap<ServerEvent>()
 	private let capabilitiesStreamTap = AsyncStreamTap<ServerCapabilities>()
 
 	public init(configuration: Configuration) {
@@ -135,8 +134,7 @@ public actor RestartingServer<WrappedServer: Server & Sendable> {
 	}
 
 	private func startMonitoringServer(_ server: InitializingServer) async {
-		await requestStreamTap.setInputStream(server.requestSequence)
-		await notificationStreamTap.setInputStream(server.notificationSequence)
+		await eventStreamTap.setInputStream(server.eventSequence)
 		await capabilitiesStreamTap.setInputStream(server.capabilitiesSequence)
 	}
 
@@ -239,12 +237,8 @@ extension RestartingServer: StatefulServer {
 		self.state = .notStarted
 	}
 
-	public nonisolated var notificationSequence: NotificationSequence {
-		notificationStreamTap.stream
-	}
-
-	public nonisolated var requestSequence: RequestSequence {
-		requestStreamTap.stream
+	public nonisolated var eventSequence: EventSequence {
+		eventStreamTap.stream
 	}
 
 	public nonisolated var capabilitiesSequence: CapabilitiesSequence {
