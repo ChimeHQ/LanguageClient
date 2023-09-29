@@ -7,7 +7,7 @@ import Semaphore
 import LanguageServerProtocol
 import LanguageServerProtocol_Client
 
-enum RestartingServerError: Error {
+public enum RestartingServerError: Error {
 	case noProvider
 	case serverStopped
 	case noURIMatch(DocumentUri)
