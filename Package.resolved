@@ -19,15 +19,6 @@
       }
     },
     {
-      "identity" : "jsonrpc",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/ChimeHQ/JSONRPC",
-      "state" : {
-        "revision" : "5f48cfdc1c4ce70cd50d996a95ee60d26aa72fee",
-        "version" : "0.8.0"
-      }
-    },
-    {
       "identity" : "processenv",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/ChimeHQ/ProcessEnv",
