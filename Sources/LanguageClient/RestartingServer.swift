@@ -3,6 +3,11 @@ import Foundation
 import OSLog
 #endif
 
+#if !(os(macOS) || os(iOS) || os(tvOS))
+/* nanoseconds per second */
+let NSEC_PER_SEC: UInt64 = 1000000000
+#endif
+
 import Semaphore
 import LanguageServerProtocol
 import LanguageServerProtocol_Client
