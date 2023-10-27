@@ -20,7 +20,7 @@ public enum RestartingServerError: Error {
 }
 
 /// A `Server` wrapper that provides transparent server-side state restoration should the underlying process crash.
-public actor RestartingServer<WrappedServer: Server & Sendable> {
+public actor RestartingServer<WrappedServer: ServerConnection & Sendable> {
 	public typealias ServerProvider = @Sendable () async throws -> WrappedServer
 	public typealias TextDocumentItemProvider = @Sendable (DocumentUri) async throws -> TextDocumentItem
 	public typealias InitializeParamsProvider = InitializingServer.InitializeParamsProvider
@@ -125,7 +125,7 @@ public actor RestartingServer<WrappedServer: Server & Sendable> {
 			do {
 				let item = try await configuration.textDocumentItemProvider(uri)
 
-				let params = TextDocumentDidOpenParams(textDocument: item)
+				let params = DidOpenTextDocumentParams(textDocument: item)
 
 				try await server.textDocumentDidOpen(params: params)
 			} catch {
@@ -184,7 +184,7 @@ public actor RestartingServer<WrappedServer: Server & Sendable> {
 		return server
 	}
 
-	private func handleDidOpen(_ params: TextDocumentDidOpenParams) {
+	private func handleDidOpen(_ params: DidOpenTextDocumentParams) {
 		let uri = params.textDocument.uri
 
 		assert(openDocumentURIs.contains(uri) == false)
@@ -192,7 +192,7 @@ public actor RestartingServer<WrappedServer: Server & Sendable> {
 		self.openDocumentURIs.insert(uri)
 	}
 
-	private func handleDidClose(_ params: TextDocumentDidCloseParams) {
+	private func handleDidClose(_ params: DidCloseTextDocumentParams) {
 		let uri = params.textDocument.uri
 
 		assert(openDocumentURIs.contains(uri))

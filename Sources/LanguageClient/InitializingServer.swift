@@ -50,7 +50,7 @@ public actor InitializingServer {
 		}
 	}
 
-	private let channel: Server
+	private let channel: ServerConnection
 	private var state = State.uninitialized
 	private let semaphore = AsyncSemaphore(value: 1)
 	private let eventStreamTap = AsyncStreamTap<ServerEvent>()
@@ -59,7 +59,7 @@ public actor InitializingServer {
 
 	public let capabilitiesSequence: CapabilitiesSequence
 
-	public init(server: Server, initializeParamsProvider: @escaping InitializeParamsProvider) {
+	public init(server: ServerConnection, initializeParamsProvider: @escaping InitializeParamsProvider) {
 		self.channel = server
 		self.initializeParamsProvider = initializeParamsProvider
 		(self.capabilitiesSequence, self.capabilitiesContinuation) = CapabilitiesSequence.makeStream()
@@ -185,7 +185,7 @@ extension InitializingServer {
 
 	private func handleEvent(_ event: ServerEvent) {
     switch event {
-      case let .request(request):
+      case let .request(_, request):
         handleRequest(request)
       default:
         break
