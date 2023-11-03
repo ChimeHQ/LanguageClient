@@ -33,7 +33,7 @@ let package = Package(
 				.product(name: "GlobPattern", package: "GlobPattern", condition: .when(platforms: [.macOS])),
 				"JSONRPC",
         .product(name: "LanguageServerProtocol", package: "LanguageServerProtocol"),
-        .product(name: "LanguageServerProtocol-Client", package: "LanguageServerProtocol"),
+        .product(name: "LSPClient", package: "LanguageServerProtocol"),
 				.product(name: "ProcessEnv", package: "ProcessEnv", condition: .when(platforms: [.macOS])),
 				"Queue",
 				"Semaphore",

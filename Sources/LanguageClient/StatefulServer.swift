@@ -1,7 +1,7 @@
 import Foundation
 
 import LanguageServerProtocol
-import LanguageServerProtocol_Client
+import LSPClient
 
 extension ServerConnection {
 	public typealias CapabilitiesSequence = AsyncStream<ServerCapabilities>
