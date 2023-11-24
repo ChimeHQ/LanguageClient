@@ -31,11 +31,13 @@ let server = JSONRPCServer(dataChannel: channel)
 ```swift
 import LanguageClient
 import LanguageServerProtocol
+import LSPClient
+import Foundation
 
 let executionParams = Process.ExecutionParameters(path: "/usr/bin/sourcekit-lsp", environment: ProcessInfo.processInfo.userEnvironment)
 
 let channel = DataChannel.localProcessChannel(parameters: executionParams, terminationHandler: { print("terminated") })
-let localServer = JSONRPCServer(dataChannel: channel)
+let localServer = JSONRPCServerConnection(dataChannel: channel)
 
 let provider: InitializingServer.InitializeParamsProvider = {
     // you may need to fill in more of the textDocument field for completions
@@ -52,7 +54,7 @@ let provider: InitializingServer.InitializeParamsProvider = {
     return InitializeParams(processId: Int(ProcessInfo.processInfo.processIdentifier),
                             locale: nil,
                             rootPath: nil,
-                            rootURI: projectURL.absoluteString,
+                            rootUri: projectURL.absoluteString,
                             initializationOptions: nil,
                             capabilities: capabilities,
                             trace: nil,
@@ -70,7 +72,7 @@ Task {
                                languageId: .swift,
                                version: 1,
                                text: docContent)
-    let docParams = textDocumentDidOpenParams(textDocument: doc)
+    let docParams = DidOpenTextDocumentParams(textDocument: doc)
 
     try await server.textDocumentDidOpen(params: docParams)
 
