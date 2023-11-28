@@ -15,7 +15,7 @@ let package = Package(
 			targets: ["LanguageClient"]),
 	],
 	dependencies: [
-		.package(url: "https://github.com/ChimeHQ/LanguageServerProtocol", revision: "a355005e6c00775bb567e1d5927a4d57423474c9"),
+		.package(url: "https://github.com/ChimeHQ/LanguageServerProtocol", from: "0.11.0"),
 		.package(url: "https://github.com/Frizlab/FSEventsWrapper", from: "2.1.0"),
 		.package(url: "https://github.com/ChimeHQ/GlobPattern", from: "0.1.1"),
 		.package(url: "https://github.com/ChimeHQ/JSONRPC", from: "0.9.0"),
