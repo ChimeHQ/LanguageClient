@@ -53,9 +53,7 @@ extension DataChannel {
 			// to prevent it from being deallocated
 			_ = process
 
-			let data = MessageFraming.frame($0)
-
-			try stdinPipe.fileHandleForWriting.write(contentsOf: data)
+			try stdinPipe.fileHandleForWriting.write(contentsOf: $0)
 		}
 
 		return DataChannel(writeHandler: handler, dataSequence: stream)
