@@ -2,19 +2,16 @@ import Foundation
 import LanguageServerProtocol
 import JSONRPC
 
-
-#if canImport(ProcessEnv)
-import ProcessEnv
-
-#if compiler(>=5.9)
-
+#if os(macOS)
 /// The user script directory for this app.
 ///
 @available(macOS 12.0, *)
-private let userScriptDirectory = try? FileManager.default.url(for: .applicationScriptsDirectory,
-																															 in: .userDomainMask,
-																															 appropriateFor: nil,
-																															 create: false)
+private let userScriptDirectory = try? FileManager.default.url(
+	for: .applicationScriptsDirectory,
+	in: .userDomainMask,
+	appropriateFor: nil,
+	create: false
+)
 
 extension DataChannel {
 
@@ -26,11 +23,11 @@ extension DataChannel {
 	///   - terminationHandler: Termination handler to invoke when the user script terminates.
 	///
 	@available(macOS 12.0, *)
-	public static func userScriptChannel(scriptPath: String,
-																			 arguments: [String] = [],
-																			 terminationHandler: @escaping @Sendable () -> Void)
-	throws -> DataChannel
-	{
+	public static func userScriptChannel(
+		scriptPath: String,
+		arguments: [String] = [],
+		terminationHandler: @escaping @Sendable () -> Void
+	) throws -> DataChannel {
 		guard let scriptURL = userScriptDirectory?.appendingPathComponent(scriptPath) else {
 			throw CocoaError(.fileNoSuchFile)
 		}
@@ -87,7 +84,5 @@ extension DataChannel {
 		return DataChannel(writeHandler: handler, dataSequence: stream)
 	}
 }
-
-#endif
 
 #endif
