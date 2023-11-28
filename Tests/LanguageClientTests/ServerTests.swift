@@ -1,5 +1,6 @@
 import XCTest
 import LanguageServerProtocol
+import LSPClient
 import LanguageClient
 
 enum ServerTestError: Error {
@@ -43,9 +44,9 @@ final class ServerTests: XCTestCase {
 		let messages = await mockChannel.finishSession()
 
 		XCTAssertEqual(messages, [
-			.request(.initialize(Self.initParams)),
+			.request(.initialize(Self.initParams, ClientRequest.NullHandler)),
 			.notification(.initialized(InitializedParams())),
-			.request(.hover(params)),
+			.request(.hover(params, ClientRequest.NullHandler)),
 		])
 
 		XCTAssertEqual(response?.range, LSPRange(startPair: (0, 0), endPair: (0, 1)))

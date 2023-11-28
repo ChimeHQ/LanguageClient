@@ -1,8 +1,9 @@
 import Foundation
 
 import LanguageServerProtocol
+import LSPClient
 
-extension Server {
+extension ServerConnection {
 	/// This function will always attempt to decode "null".
 	///
 	/// We don't know the generic type of the return. So, we have to emulate.

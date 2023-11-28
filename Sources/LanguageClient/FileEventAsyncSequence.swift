@@ -61,9 +61,9 @@ extension FileChangeType {
 	}
 }
 
+#if compiler(>=5.9)
 public struct FileEventAsyncSequence: AsyncSequence {
 	public typealias Element = FileEvent
-
 	public struct FileEventAsyncIterator: AsyncIteratorProtocol {
 		private let stream: AsyncCompactMapSequence<FSEventAsyncStream, Element>
 		private var internalIterator: AsyncCompactMapSequence<FSEventAsyncStream, Element>.Iterator
@@ -111,6 +111,8 @@ public struct FileEventAsyncSequence: AsyncSequence {
 	public func makeAsyncIterator() -> FileEventAsyncIterator {
 		FileEventAsyncIterator(root: root.path, kind: kind, pattern: pattern, filterInProcessChanges: filterInProcessChanges)
 	}
+
 }
+#endif
 
 #endif

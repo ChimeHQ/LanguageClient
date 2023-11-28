@@ -5,28 +5,6 @@ import JSONRPC
 #if canImport(ProcessEnv)
 import ProcessEnv
 
-#if compiler(>=5.9)
-
-extension FileHandle {
-	public var dataStream: AsyncStream<Data> {
-		let (stream, continuation) = AsyncStream<Data>.makeStream()
-
-		readabilityHandler = { handle in
-			let data = handle.availableData
-
-			if data.isEmpty {
-				handle.readabilityHandler = nil
-				continuation.finish()
-				return
-			}
-
-			continuation.yield(data)
-		}
-
-		return stream
-	}
-}
-
 extension DataChannel {
 	@available(macOS 12.0, *)
 	public static func localProcessChannel(
@@ -54,10 +32,8 @@ extension DataChannel {
 
 		Task {
 			let dataStream = stdoutPipe.fileHandleForReading.dataStream
-			let byteStream = AsyncByteSequence(base: dataStream)
-			let framedData = AsyncMessageFramingSequence(base: byteStream)
 
-			for try await data in framedData {
+			for try await data in dataStream {
 				continuation.yield(data)
 			}
 
@@ -85,6 +61,5 @@ extension DataChannel {
 		return DataChannel(writeHandler: handler, dataSequence: stream)
 	}
 }
-#endif
 
 #endif

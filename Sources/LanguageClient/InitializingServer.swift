@@ -5,6 +5,7 @@ import os.log
 
 import Semaphore
 import LanguageServerProtocol
+import LSPClient
 
 enum InitializingServerError: Error {
 	case noStateProvider
@@ -12,7 +13,6 @@ enum InitializingServerError: Error {
 	case stateInvalid
 }
 
-#if compiler(>=5.9)
 /// Server implementation that lazily initializes another Server on first message.
 ///
 /// Provides special handling for `shutdown` and `exit` messages.
@@ -50,20 +50,18 @@ public actor InitializingServer {
 		}
 	}
 
-	private let channel: Server
+	private let channel: ServerConnection
 	private var state = State.uninitialized
 	private let semaphore = AsyncSemaphore(value: 1)
-	private let requestStreamTap = AsyncStreamTap<ServerRequest>()
+	private let eventStreamTap = AsyncStreamTap<ServerEvent>()
 	private let initializeParamsProvider: InitializeParamsProvider
 	private let capabilitiesContinuation: StatefulServer.CapabilitiesSequence.Continuation
 
-	public let notificationSequence: NotificationSequence
 	public let capabilitiesSequence: CapabilitiesSequence
 
-	public init(server: Server, initializeParamsProvider: @escaping InitializeParamsProvider) {
+	public init(server: ServerConnection, initializeParamsProvider: @escaping InitializeParamsProvider) {
 		self.channel = server
 		self.initializeParamsProvider = initializeParamsProvider
-		self.notificationSequence = channel.notificationSequence
 		(self.capabilitiesSequence, self.capabilitiesContinuation) = CapabilitiesSequence.makeStream()
 
 		Task {
@@ -76,8 +74,8 @@ public actor InitializingServer {
 	}
 
 	private func startMonitoringServer() async {
-		await requestStreamTap.setInputStream(channel.requestSequence) { [weak self] in
-			await self?.handleRequest($0)
+		await eventStreamTap.setInputStream(channel.eventSequence) { [weak self] in
+			await self?.handleEvent($0)
 		}
 	}
 
@@ -123,8 +121,8 @@ extension InitializingServer: StatefulServer {
 		self.state = .uninitialized
 	}
 
-	public nonisolated var requestSequence: RequestSequence {
-		requestStreamTap.stream
+	public nonisolated var eventSequence: EventSequence {
+		eventStreamTap.stream
 	}
 
 	public func sendNotification(_ notif: LanguageServerProtocol.ClientNotification) async throws {
@@ -185,6 +183,15 @@ extension InitializingServer {
 		return caps
 	}
 
+	private func handleEvent(_ event: ServerEvent) {
+    switch event {
+      case let .request(_, request):
+        handleRequest(request)
+      default:
+        break
+    }
+  }
+
 	private func handleRequest(_ request: ServerRequest) {
 		guard case .initialized(let caps) = self.state else {
 			fatalError("received a request without being initialized")
@@ -212,4 +219,3 @@ extension InitializingServer {
 		}
 	}
 }
-#endif
