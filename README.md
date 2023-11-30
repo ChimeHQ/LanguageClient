@@ -1,6 +1,11 @@
-[![License][license badge]][license]
+<div align="center">
+
+[![Build Status][build status badge]][build status]
 [![Platforms][platforms badge]][platforms]
 [![Documentation][documentation badge]][documentation]
+[![Discord][discord badge]][discord]
+
+</div>
 
 # LanguageClient
 
@@ -9,6 +14,8 @@ This is a Swift library for abstracting and interacting with language servers th
 ## General Design
 
 This library is all based around the `Server` protocol from LanguageServerProtocol. The idea is to wrap up and expose progressively more-complex behavior. This helps to keep things manageable, while also offering lower-complexity types for less-demanding needs. It was also just the first thing I tried that worked out reasonably well.
+
+Because all the types here conform to `Server`, lots of their functionality is covered by [LanguageServerProtocol][languageserverprotocol]'s documenation.
 
 ### Environment
 
@@ -21,8 +28,6 @@ If you need help here, check out [ProcessEnv](https://github.com/chimehq/process
 The Language Server protocol is stateful. Some message types are order-dependent. This is something you must be aware of when working with `async` methods. I have found a queue to be essential. Here's [one](https://github.com/mattmassicotte/Queue), if you find yourself looking.
 
 ## Usage
-
-For details on how to respond to server requests and notifications, check out the [LanguageServerProtocol][languageserverprotocol] library documenation.
 
 ### Local Process
 
@@ -190,11 +195,13 @@ We'd love to hear from you! Get in touch via an issue or pull request.
 
 Please note that this project is released with a [Contributor Code of Conduct](CODE_OF_CONDUCT.md). By participating in this project you agree to abide by its terms.
 
-[license]: https://opensource.org/licenses/BSD-3-Clause
-[license badge]: https://img.shields.io/github/license/ChimeHQ/SwiftTreeSitter
+[build status]: https://github.com/ChimeHQ/LanguageClient/actions
+[build status badge]: https://github.com/ChimeHQ/LanguageClient/workflows/CI/badge.svg
 [platforms]: https://swiftpackageindex.com/ChimeHQ/LanguageClient
 [platforms badge]: https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FChimeHQ%2FLanguageClient%2Fbadge%3Ftype%3Dplatforms
 [documentation]: https://swiftpackageindex.com/ChimeHQ/LanguageClient/main/documentation
 [documentation badge]: https://img.shields.io/badge/Documentation-DocC-blue
+[discord]: https://discord.gg/esFpX6sErJ
+[discord badge]: https://img.shields.io/badge/Discord-purple?logo=Discord&label=Chat&color=%235A64EC
 
 [languageserverprotocol]: https://github.com/ChimeHQ/LanguageServerProtocol
