@@ -1,6 +1,5 @@
 import XCTest
 import LanguageServerProtocol
-import LSPClient
 import LanguageClient
 
 enum ServerTestError: Error {

@@ -47,7 +47,7 @@ let channel = try DataChannel.localProcessChannel(
     terminationHandler: { print("terminated") }
 )
 
-// finally, make a server you can interact with 
+// finally, make a server you can interact with
 let server = JSONRPCServerConnection(dataChannel: channel)
 ```
 
@@ -58,7 +58,6 @@ let server = JSONRPCServerConnection(dataChannel: channel)
 ```swift
 import LanguageClient
 import LanguageServerProtocol
-import LSPClient
 import Foundation
 
 let executionParams = Process.ExecutionParameters(
@@ -84,7 +83,7 @@ let provider: InitializingServer.InitializeParamsProvider = {
                                           window: nil,
                                           general: nil,
                                           experimental: nil)
-    
+
     // pay careful attention to rootPath/rootURI/workspaceFolders, as different servers will
     // have different expectations/requirements here
     return InitializeParams(processId: Int(ProcessInfo.processInfo.processIdentifier),
@@ -101,18 +100,18 @@ let server = InitializingServer(server: localServer, initializeParamsProvider: p
 
 Task {
     let docContent = try String(contentsOf: docURL)
-    
+
     let doc = TextDocumentItem(
         uri: docURL.absoluteString,
         languageId: .swift,
         version: 1,
         text: docContent
     )
-    
+
     let docParams = DidOpenTextDocumentParams(textDocument: doc)
-    
+
     try await server.textDocumentDidOpen(params: docParams)
-    
+
     // make sure to pick a reasonable position within your test document
     let pos = Position(line: 5, character: 25)
     let completionParams = CompletionParams(
@@ -121,9 +120,9 @@ Task {
         triggerKind: .invoked,
         triggerCharacter: nil
     )
-    
+
     let completions = try await server.completion(params: completionParams)
-    
+
     print("completions: ", completions)
 }
 ```
@@ -145,7 +144,7 @@ let serverProvider: MyServer.ServerProvider = {
         parameters: executionParams,
         terminationHandler: { print("terminated") }
     )
-    
+
     return JSONRPCServerConnection(dataChannel: channel)
 }
 
@@ -166,7 +165,7 @@ let paramProvider: InitializingServer.InitializeParamsProvider = {
                                           window: nil,
                                           general: nil,
                                           experimental: nil)
-    
+
     return InitializeParams(processId: Int(ProcessInfo.processInfo.processIdentifier),
                             locale: nil,
                             rootPath: nil,
