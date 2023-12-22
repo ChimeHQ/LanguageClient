@@ -30,10 +30,10 @@
     {
       "identity" : "languageserverprotocol",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/ChimeHQ/LanguageServerProtocol",
+      "location" : "https://github.com/koliyo/LanguageServerProtocol",
       "state" : {
-        "branch" : "main",
-        "revision" : "9ae95d89b1a3f2c5da98adea29637c519a7e3c6c"
+        "branch" : "feature/unlabelled-server-params",
+        "revision" : "3cdc9a51d659a7118fcd08a6fa0e5e35865492b0"
       }
     },
     {

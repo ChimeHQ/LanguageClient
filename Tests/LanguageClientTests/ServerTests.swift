@@ -38,7 +38,7 @@ final class ServerTests: XCTestCase {
 
 		let params = TextDocumentPositionParams(uri: "abc", position: .init((0, 0)))
 
-		let response = try await server.hover(params: params)
+		let response = try await server.hover(params)
 
 		let messages = await mockChannel.finishSession()
 

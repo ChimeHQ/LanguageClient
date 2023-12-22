@@ -170,10 +170,10 @@ extension InitializingServer {
 
 		let params = try await initializeParamsProvider()
 
-		let initResponse = try await channel.initialize(params: params)
+		let initResponse = try await channel.initialize(params)
 		let caps = initResponse.capabilities
 
-		try await channel.initialized(params: InitializedParams())
+		try await channel.initialized(InitializedParams())
 
 		self.state = .initialized(caps)
 
