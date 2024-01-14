@@ -15,7 +15,7 @@ let package = Package(
 			targets: ["LanguageClient"]),
 	],
 	dependencies: [
-		.package(url: "https://github.com/ChimeHQ/LanguageServerProtocol", from: "0.11.0"),
+		.package(url: "https://github.com/ChimeHQ/LanguageServerProtocol", from: "0.12.0"),
 		.package(url: "https://github.com/Frizlab/FSEventsWrapper", from: "2.1.0"),
 		.package(url: "https://github.com/ChimeHQ/GlobPattern", from: "0.1.1"),
 		.package(url: "https://github.com/ChimeHQ/JSONRPC", from: "0.9.0"),
@@ -30,8 +30,7 @@ let package = Package(
 				.product(name: "FSEventsWrapper", package: "FSEventsWrapper", condition: .when(platforms: [.macOS])),
 				.product(name: "GlobPattern", package: "GlobPattern", condition: .when(platforms: [.macOS])),
 				"JSONRPC",
-				.product(name: "LanguageServerProtocol", package: "LanguageServerProtocol"),
-				.product(name: "LSPClient", package: "LanguageServerProtocol"),
+				"LanguageServerProtocol",
 				.product(name: "ProcessEnv", package: "ProcessEnv", condition: .when(platforms: [.macOS])),
 				"Queue",
 				"Semaphore",

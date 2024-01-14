@@ -5,7 +5,6 @@ import os.log
 
 import Semaphore
 import LanguageServerProtocol
-import LSPClient
 
 enum InitializingServerError: Error {
 	case noStateProvider

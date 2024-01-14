@@ -10,7 +10,6 @@ let NSEC_PER_SEC: UInt64 = 1000000000
 
 import Semaphore
 import LanguageServerProtocol
-import LSPClient
 
 public enum RestartingServerError: Error {
 	case noProvider

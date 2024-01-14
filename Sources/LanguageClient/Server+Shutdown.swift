@@ -1,7 +1,6 @@
 import Foundation
 
 import LanguageServerProtocol
-import LSPClient
 
 extension ServerConnection {
 	/// This function will always attempt to decode "null".
