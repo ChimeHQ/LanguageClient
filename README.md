@@ -17,6 +17,13 @@ This library is all based around the `Server` protocol from LanguageServerProtoc
 
 Because all the types here conform to `Server`, lots of their functionality is covered by [LanguageServerProtocol][languageserverprotocol]'s documenation.
 
+## Communication
+
+The raw communication between server and client is handled by the `DataChannel` type from the [JSONRPC](https://github.com/ChimeHQ/JSONRPC) package. This package includes two that may already suit your needs:
+
+- DataChannel.localProcessChannel: running a server locally on the same machine
+- DataChannel.userScriptDirectory: uses `NSUserUnixTask` for user application script support to better integrate with sandboxed processes
+
 ### Environment
 
 Setting correct environment variables is often critical for a language server. An executable on macOS will **not** inherent the user's shell environment. Capturing shell environment variables is tricky business. Despite its name, `ProcessInfo.processInfo.userEnvironment` captures the `process` environment, not the user's.
