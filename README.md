@@ -13,9 +13,9 @@ This is a Swift library for abstracting and interacting with language servers th
 
 ## General Design
 
-This library is all based around the `Server` protocol from LanguageServerProtocol. The idea is to wrap up and expose progressively more-complex behavior. This helps to keep things manageable, while also offering lower-complexity types for less-demanding needs. It was also just the first thing I tried that worked out reasonably well.
+This library is all based around the `ServerConnection` protocol from LanguageServerProtocol. The idea is to wrap up and expose progressively more-complex behavior. This helps to keep things manageable, while also offering lower-complexity types for less-demanding needs. It was also just the first thing I tried that worked out reasonably well.
 
-Because all the types here conform to `Server`, lots of their functionality is covered by [LanguageServerProtocol][languageserverprotocol]'s documenation.
+Because all the types here conform to `ServerConnection`, lots of their functionality is covered by [LanguageServerProtocol][languageserverprotocol]'s documentation. This includes getting access to server events via `eventSequence`.
 
 ## Communication
 
@@ -40,7 +40,7 @@ The Language Server protocol is stateful. Some message types are order-dependent
 
 ### Local Process
 
-This is how you run a local server with not extra funtionality. It uses an extension on the [JSONRPC](https://github.com/ChimeHQ/JSONRPC) `DataChannel` type to start up and communicate with a long-running process.
+This is how you run a local server with not extra functionality. It uses an extension on the [JSONRPC](https://github.com/ChimeHQ/JSONRPC) `DataChannel` type to start up and communicate with a long-running process.
 
 ```swift
 // Set up parameters to launch the server process
