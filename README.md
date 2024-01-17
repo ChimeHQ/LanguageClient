@@ -142,6 +142,12 @@ Task {
 `Server` wrapper that provides transparent server-side state restoration should the underlying process crash. It uses `InitializingServer` internally. Using this type is the most-involved, because it needs to be able to query the current state of the project editor to do its state restoration.
 
 ```swift
+import LanguageClient
+import LanguageServerProtocol
+import JSONRPC
+
+typealias MyRestartingServer = RestartingServer<JSONRPCServerConnection>
+
 let executionParams = Process.ExecutionParameters(
     path: "/usr/bin/sourcekit-lsp",
     environment: ProcessInfo.processInfo.userEnvironment
@@ -149,16 +155,16 @@ let executionParams = Process.ExecutionParameters(
 
 let projectURL = URL(fileURLWithPath: "path/to/open/project")
 
-let serverProvider: MyServer.ServerProvider = {
+let serverProvider: MyRestartingServer.ServerProvider = {
     let channel = try DataChannel.localProcessChannel(
         parameters: executionParams,
         terminationHandler: { print("terminated") }
     )
-    
+
     return JSONRPCServerConnection(dataChannel: channel)
 }
 
-let openDocumentProvider: MyServer.TextDocumentItemProvider = { uri in
+let openDocumentProvider: MyRestartingServer.TextDocumentItemProvider = { uri in
     // you will have to use the provided uri to look up the actual content of the real document
     return TextDocumentItem(
         uri: uri,
@@ -170,28 +176,33 @@ let openDocumentProvider: MyServer.TextDocumentItemProvider = { uri in
 
 let paramProvider: InitializingServer.InitializeParamsProvider = {
     // most of these are placeholders, you will probably need more configuration
-    let capabilities = ClientCapabilities(workspace: nil,
-                                          textDocument: nil,
-                                          window: nil,
-                                          general: nil,
-                                          experimental: nil)
-    
-    return InitializeParams(processId: Int(ProcessInfo.processInfo.processIdentifier),
-                            locale: nil,
-                            rootPath: nil,
-                            rootUri: projectURL.path(percentEncoded: false),
-                            initializationOptions: nil,
-                            capabilities: capabilities,
-                            trace: nil,
-                            workspaceFolders: nil)
+    let capabilities = ClientCapabilities(
+        workspace: nil,
+        textDocument: nil,
+        window: nil,
+        general: nil,
+        experimental: nil
+    )
+
+    return InitializeParams(
+        processId: Int(ProcessInfo.processInfo.processIdentifier),
+        locale: nil,
+        rootPath: nil,
+        rootUri: projectURL.path(percentEncoded: false),
+        initializationOptions: nil,
+        capabilities: capabilities,
+        trace: nil,
+        workspaceFolders: nil
+    )
 }
 
-let config = MyServer.Configuration(
+let config = MyRestartingServer.Configuration(
     serverProvider: serverProvider,
     textDocumentItemProvider: openDocumentProvider,
-    initializeParamsProvider: paramProvider)
+    initializeParamsProvider: paramProvider
+)
 
-let server = RestartingServer(configuration: config)
+let server = MyRestartingServer(configuration: config)
 ```
 
 ### FileEventAsyncSequence
