@@ -21,8 +21,10 @@ Because all the types here conform to `Server`, lots of their functionality is c
 
 The raw communication between server and client is handled by the `DataChannel` type from the [JSONRPC](https://github.com/ChimeHQ/JSONRPC) package. This package includes two that may already suit your needs:
 
-- DataChannel.localProcessChannel: running a server locally on the same machine
-- DataChannel.userScriptDirectory: uses `NSUserUnixTask` for user application script support to better integrate with sandboxed processes
+- `DataChannel.localProcessChannel`: running a server locally on the same machine
+- `DataChannel.userScriptDirectory`: uses `NSUserUnixTask` for user application script support to better integrate with sandboxed processes
+
+When making a custom DataChannel, its really important to ensure that all data passes in both directions, including the LSP-specific framing information. The framing looks like HTTP headers, and can seem out of place.
 
 ### Environment
 
