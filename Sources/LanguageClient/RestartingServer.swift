@@ -126,7 +126,7 @@ public actor RestartingServer<WrappedServer: ServerConnection & Sendable> {
 
 				let params = DidOpenTextDocumentParams(textDocument: item)
 
-				try await server.textDocumentDidOpen(params: params)
+				try await server.textDocumentDidOpen(params)
 			} catch {
 #if canImport(OSLog)
 				logger.error("Failed to reopen document \(uri, privacy: .public): \(error, privacy: .public)")
