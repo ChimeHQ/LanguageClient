@@ -17,6 +17,8 @@ extension DataChannel {
 
 	/// Create a `DataChannel` that connects to an application user script in the application scripts directory.
 	///
+	/// Based around `NSUserUnixTask`. See more here: https://developer.apple.com/documentation/foundation/nsuserunixtask.
+	///
 	/// - Parameters:
 	///   - scriptPath: The path of the application user script.
 	///   - arguments: The script arguments.
