@@ -208,6 +208,25 @@ let server = MyRestartingServer(configuration: config)
 
 An `AsyncSequence` that uses FS events and glob patterns to handle `DidChangeWatchedFiles`. It is available only for macOS.
 
+
+### Responding to Events
+
+You can respond to server events using `eventSequence`. Be careful here as some servers require responses to certain requests. It is also potentially possible that not all request types have been mapped in the ServerRequest type from [LanguageServerProtocol][languageserverprotocol].
+
+```swift
+Task {
+    for await event in server.eventSequence {
+        print("receieved event:", event)
+        
+        switch event {
+        case let .request(id: id, request: request):
+            request.relyWithError(MyError.unsupported)
+        default:
+            print("dropping notification/error")
+        }
+    }
+}
+```
 ## Suggestions or Feedback
 
 We'd love to hear from you! Get in touch via an issue or pull request.
