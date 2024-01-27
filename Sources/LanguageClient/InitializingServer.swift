@@ -20,34 +20,43 @@ enum InitializingServerError: Error {
 public actor InitializingServer {
 	public typealias InitializeParamsProvider = @Sendable () async throws -> InitializeParams
 
-	private enum State {
-		case uninitialized
-		case initialized(ServerCapabilities)
-		case shutdown
+    private enum State {
+        case uninitialized
+        case initialized(capabilities: ServerCapabilities, info: ServerInfo?)
+        case shutdown
 
-		var capabilities: ServerCapabilities? {
-			get {
-				switch self {
-				case .initialized(let capabilities):
-					return capabilities
-				case .uninitialized, .shutdown:
-					return nil
-				}
-			}
-			set {
-				guard let caps = newValue else {
-					fatalError()
-				}
+        var capabilities: ServerCapabilities? {
+            get {
+                switch self {
+                case .initialized(let capabilities, _):
+                    return capabilities
+                case .uninitialized, .shutdown:
+                    return nil
+                }
+            }
+            set {
+                guard let caps = newValue else {
+                    fatalError()
+                }
 
-				switch self {
-				case .initialized:
-					self = .initialized(caps)
-				case .uninitialized, .shutdown:
-					break
-				}
-			}
-		}
-	}
+                switch self {
+                case .initialized(_, let info):
+                    self = .initialized(capabilities: caps, info: info)
+                case .uninitialized, .shutdown:
+                    break
+                }
+            }
+        }
+
+        var serverInfo: ServerInfo? {
+            switch self {
+            case .initialized(_, let info):
+                return info
+            case .uninitialized, .shutdown:
+                return nil
+            }
+        }
+    }
 
 	private let channel: ServerConnection
 	private var state = State.uninitialized
@@ -94,6 +103,23 @@ public actor InitializingServer {
 			return state.capabilities
 		}
 	}
+    
+    /// Return the server's info.
+    ///
+    /// This will not start the server if it isn't already running.
+    public var serverInfo: ServerInfo? {
+        get async {
+            do {
+                try await semaphore.waitUnlessCancelled()
+            } catch {
+                return nil
+            }
+
+            defer { semaphore.signal() }
+
+            return state.serverInfo
+        }
+    }
 }
 
 extension InitializingServer: StatefulServer {
@@ -158,10 +184,10 @@ extension InitializingServer: StatefulServer {
 
 extension InitializingServer {
 	/// Run the initialization sequence with the server, if it has not already happened.
-	public func initializeIfNeeded() async throws -> ServerCapabilities {
+	public func initializeIfNeeded() async throws -> (ServerCapabilities, ServerInfo?) {
 		switch state {
-		case .initialized(let caps):
-			return caps
+		case .initialized(let caps, let info):
+			return (caps, info)
 		case .uninitialized, .shutdown:
 			try await semaphore.waitUnlessCancelled()
 		}
@@ -172,27 +198,28 @@ extension InitializingServer {
 
 		let initResponse = try await channel.initialize(params)
 		let caps = initResponse.capabilities
+        let info = initResponse.serverInfo
 
 		try await channel.initialized(InitializedParams())
 
-		self.state = .initialized(caps)
+        self.state = .initialized(capabilities: caps, info: info)
 
 		capabilitiesContinuation.yield(caps)
 
-		return caps
+		return (caps, info)
 	}
 
-	private func handleEvent(_ event: ServerEvent) {
-    switch event {
-      case let .request(_, request):
-        handleRequest(request)
-      default:
-        break
+    private func handleEvent(_ event: ServerEvent) {
+        switch event {
+        case let .request(_, request):
+            handleRequest(request)
+        default:
+            break
+        }
     }
-  }
 
 	private func handleRequest(_ request: ServerRequest) {
-		guard case .initialized(let caps) = self.state else {
+		guard case .initialized(let caps, let info) = self.state else {
 			fatalError("received a request without being initialized")
 		}
 
@@ -212,7 +239,7 @@ extension InitializingServer {
 		}
 
 		if caps != newCaps {
-			self.state = .initialized(newCaps)
+            self.state = .initialized(capabilities: newCaps, info: info)
 
 			capabilitiesContinuation.yield(newCaps)
 		}
