@@ -22,14 +22,14 @@ public actor InitializingServer {
 
 	private enum State {
 		case uninitialized
-		case initialized(ServerCapabilities)
+		case initialized(InitializationResponse)
 		case shutdown
 
 		var capabilities: ServerCapabilities? {
 			get {
 				switch self {
-				case .initialized(let capabilities):
-					return capabilities
+				case .initialized(let initResp):
+					return initResp.capabilities
 				case .uninitialized, .shutdown:
 					return nil
 				}
@@ -40,11 +40,20 @@ public actor InitializingServer {
 				}
 
 				switch self {
-				case .initialized:
-					self = .initialized(caps)
+				case .initialized(let initResp):
+					self = .initialized(initResp)
 				case .uninitialized, .shutdown:
 					break
 				}
+			}
+		}
+
+		var serverInfo: ServerInfo? {
+			switch self {
+			case .initialized(let initResp):
+				return initResp.serverInfo
+			case .uninitialized, .shutdown:
+				return nil
 			}
 		}
 	}
@@ -92,6 +101,23 @@ public actor InitializingServer {
 			defer { semaphore.signal() }
 
 			return state.capabilities
+		}
+	}
+		
+	/// Return the server's info.
+	///
+	/// This will not start the server if it isn't already running.
+	public var serverInfo: ServerInfo? {
+		get async {
+			do {
+				try await semaphore.waitUnlessCancelled()
+			} catch {
+				return nil
+			}
+
+			defer { semaphore.signal() }
+
+			return state.serverInfo
 		}
 	}
 }
@@ -158,10 +184,10 @@ extension InitializingServer: StatefulServer {
 
 extension InitializingServer {
 	/// Run the initialization sequence with the server, if it has not already happened.
-	public func initializeIfNeeded() async throws -> ServerCapabilities {
+	public func initializeIfNeeded() async throws -> InitializationResponse {
 		switch state {
-		case .initialized(let caps):
-			return caps
+		case .initialized(let initResp):
+			return initResp
 		case .uninitialized, .shutdown:
 			try await semaphore.waitUnlessCancelled()
 		}
@@ -169,34 +195,31 @@ extension InitializingServer {
 		defer { semaphore.signal() }
 
 		let params = try await initializeParamsProvider()
-
 		let initResponse = try await channel.initialize(params)
-		let caps = initResponse.capabilities
 
 		try await channel.initialized(InitializedParams())
+		self.state = .initialized(initResponse)
 
-		self.state = .initialized(caps)
+		capabilitiesContinuation.yield(initResponse.capabilities)
 
-		capabilitiesContinuation.yield(caps)
-
-		return caps
+		return initResponse
 	}
 
 	private func handleEvent(_ event: ServerEvent) {
-    switch event {
-      case let .request(_, request):
-        handleRequest(request)
-      default:
-        break
-    }
-  }
+		switch event {
+		case let .request(_, request):
+			handleRequest(request)
+		default:
+			break
+		}
+	}
 
 	private func handleRequest(_ request: ServerRequest) {
-		guard case .initialized(let caps) = self.state else {
+		guard case .initialized(let initResp) = self.state else {
 			fatalError("received a request without being initialized")
 		}
 
-		var newCaps = caps
+		var newCaps = initResp.capabilities
 
 		do {
 			switch request {
@@ -211,9 +234,8 @@ extension InitializingServer {
 			print("unable to mutate server capabilities: \(error)")
 		}
 
-		if caps != newCaps {
-			self.state = .initialized(newCaps)
-
+		if initResp.capabilities != newCaps {
+			self.state = .initialized(InitializationResponse(capabilities: newCaps, serverInfo: initResp.serverInfo))
 			capabilitiesContinuation.yield(newCaps)
 		}
 	}
