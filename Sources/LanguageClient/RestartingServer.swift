@@ -109,7 +109,7 @@ public actor RestartingServer<WrappedServer: ServerConnection & Sendable> {
 	}
 
 	/// Run the initialization sequence with the server, if it has not already happened.
-	public func initializeIfNeeded() async throws -> (ServerCapabilities, ServerInfo?) {
+	public func initializeIfNeeded() async throws -> InitializationResponse {
 		try await startServerIfNeeded().initializeIfNeeded()
 	}
 

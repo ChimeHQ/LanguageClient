@@ -22,14 +22,14 @@ public actor InitializingServer {
 
     private enum State {
         case uninitialized
-        case initialized(capabilities: ServerCapabilities, info: ServerInfo?)
+        case initialized(InitializationResponse)
         case shutdown
 
         var capabilities: ServerCapabilities? {
             get {
                 switch self {
-                case .initialized(let capabilities, _):
-                    return capabilities
+                case .initialized(let initResp):
+                    return initResp.capabilities
                 case .uninitialized, .shutdown:
                     return nil
                 }
@@ -40,8 +40,8 @@ public actor InitializingServer {
                 }
 
                 switch self {
-                case .initialized(_, let info):
-                    self = .initialized(capabilities: caps, info: info)
+                case .initialized(let initResp):
+                    self = .initialized(initResp)
                 case .uninitialized, .shutdown:
                     break
                 }
@@ -50,8 +50,8 @@ public actor InitializingServer {
 
         var serverInfo: ServerInfo? {
             switch self {
-            case .initialized(_, let info):
-                return info
+            case .initialized(let initResp):
+                return initResp.serverInfo
             case .uninitialized, .shutdown:
                 return nil
             }
@@ -184,10 +184,10 @@ extension InitializingServer: StatefulServer {
 
 extension InitializingServer {
 	/// Run the initialization sequence with the server, if it has not already happened.
-	public func initializeIfNeeded() async throws -> (ServerCapabilities, ServerInfo?) {
+	public func initializeIfNeeded() async throws -> InitializationResponse {
 		switch state {
-		case .initialized(let caps, let info):
-			return (caps, info)
+		case .initialized(let initResp):
+			return initResp
 		case .uninitialized, .shutdown:
 			try await semaphore.waitUnlessCancelled()
 		}
@@ -195,18 +195,14 @@ extension InitializingServer {
 		defer { semaphore.signal() }
 
 		let params = try await initializeParamsProvider()
-
 		let initResponse = try await channel.initialize(params)
-		let caps = initResponse.capabilities
-        let info = initResponse.serverInfo
 
 		try await channel.initialized(InitializedParams())
+        self.state = .initialized(initResponse)
 
-        self.state = .initialized(capabilities: caps, info: info)
+        capabilitiesContinuation.yield(initResponse.capabilities)
 
-		capabilitiesContinuation.yield(caps)
-
-		return (caps, info)
+		return initResponse
 	}
 
     private func handleEvent(_ event: ServerEvent) {
@@ -219,11 +215,11 @@ extension InitializingServer {
     }
 
 	private func handleRequest(_ request: ServerRequest) {
-		guard case .initialized(let caps, let info) = self.state else {
+		guard case .initialized(let initResp) = self.state else {
 			fatalError("received a request without being initialized")
 		}
 
-		var newCaps = caps
+        var newCaps = initResp.capabilities
 
 		do {
 			switch request {
@@ -238,9 +234,8 @@ extension InitializingServer {
 			print("unable to mutate server capabilities: \(error)")
 		}
 
-		if caps != newCaps {
-            self.state = .initialized(capabilities: newCaps, info: info)
-
+        if initResp.capabilities != newCaps {
+            self.state = .initialized(InitializationResponse(capabilities: newCaps, serverInfo: initResp.serverInfo))
 			capabilitiesContinuation.yield(newCaps)
 		}
 	}
