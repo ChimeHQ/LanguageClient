@@ -15,6 +15,16 @@ private let userScriptDirectory = try? FileManager.default.url(
 
 extension DataChannel {
 
+	@available(macOS 12.0, *)
+	@available(*, deprecated, message: "Please use the version that returns an error in the termination handler")
+	public static func userScriptChannel(
+		scriptPath: String,
+		arguments: [String] = [],
+		terminationHandler: @escaping @Sendable () -> Void
+	) throws -> DataChannel {
+		try userScriptChannel(scriptPath: scriptPath, terminationHandler: { _ in terminationHandler() })
+	}
+
 	/// Create a `DataChannel` that connects to an application user script in the application scripts directory.
 	///
 	/// Based around `NSUserUnixTask`. See more here: https://developer.apple.com/documentation/foundation/nsuserunixtask.
@@ -28,7 +38,7 @@ extension DataChannel {
 	public static func userScriptChannel(
 		scriptPath: String,
 		arguments: [String] = [],
-		terminationHandler: @escaping @Sendable () -> Void
+		terminationHandler: @escaping @Sendable (Error?) -> Void
 	) throws -> DataChannel {
 		guard let scriptURL = userScriptDirectory?.appendingPathComponent(scriptPath) else {
 			throw CocoaError(.fileNoSuchFile)
@@ -61,19 +71,22 @@ extension DataChannel {
 
 		// Launch the script asynchronously
 		Task {
+			do {
+				defer { continuation.finish() }
 
-			// NB: Needs to happen in the task as `NSUserUnixTask` is not sendable.
-			let unixTask = try NSUserUnixTask(url: scriptURL)
+				// NB: Needs to happen in the task as `NSUserUnixTask` is not sendable.
+				let unixTask = try NSUserUnixTask(url: scriptURL)
 
-			unixTask.standardInput  = stdinPipe.fileHandleForReading
-			unixTask.standardOutput = stdoutPipe.fileHandleForWriting
-			unixTask.standardError  = stderrPipe.fileHandleForWriting
+				unixTask.standardInput  = stdinPipe.fileHandleForReading
+				unixTask.standardOutput = stdoutPipe.fileHandleForWriting
+				unixTask.standardError  = stderrPipe.fileHandleForWriting
 
-			defer {
-				continuation.finish()
-				terminationHandler()
+				try await unixTask.execute(withArguments: arguments)
+
+				terminationHandler(nil)
+			} catch {
+				terminationHandler(error)
 			}
-			try await unixTask.execute(withArguments: arguments)
 		}
 
 		// Forward messages from the data channel into stdin
