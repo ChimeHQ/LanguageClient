@@ -2,22 +2,24 @@
 
 import PackageDescription
 
-let settings: [SwiftSetting] = [
-	.enableExperimentalFeature("StrictConcurrency")
-]
-
 let package = Package(
 	name: "LanguageClient",
-	platforms: [.macOS(.v11), .iOS(.v14), .tvOS(.v14), .watchOS(.v7)],
+	platforms: [
+		.macOS(.v11),
+		.macCatalyst(.v13),
+		.iOS(.v14),
+		.tvOS(.v14),
+		.watchOS(.v7)
+	],
 	products: [
 		.library(
 			name: "LanguageClient",
 			targets: ["LanguageClient"]),
 	],
 	dependencies: [
-		.package(url: "https://github.com/ChimeHQ/LanguageServerProtocol", from: "0.13.0"),
+		.package(url: "https://github.com/ChimeHQ/LanguageServerProtocol", from: "0.13.2"),
 		.package(url: "https://github.com/Frizlab/FSEventsWrapper", from: "2.1.0"),
-		.package(url: "https://github.com/ChimeHQ/GlobPattern", from: "0.1.1"),
+		.package(url: "https://github.com/davbeck/swift-glob", revision: "6b93163b2db5ac639eeb274c473f16f5a6dd8a95"),
 		.package(url: "https://github.com/ChimeHQ/JSONRPC", from: "0.9.0"),
 		.package(url: "https://github.com/ChimeHQ/ProcessEnv", from: "1.0.0"),
 		.package(url: "https://github.com/groue/Semaphore", from: "0.0.8"),
@@ -28,17 +30,27 @@ let package = Package(
 			name: "LanguageClient",
 			dependencies: [
 				.product(name: "FSEventsWrapper", package: "FSEventsWrapper", condition: .when(platforms: [.macOS])),
-				.product(name: "GlobPattern", package: "GlobPattern", condition: .when(platforms: [.macOS])),
+				.product(name: "Glob", package: "swift-glob"),
 				"JSONRPC",
 				"LanguageServerProtocol",
 				.product(name: "ProcessEnv", package: "ProcessEnv", condition: .when(platforms: [.macOS])),
 				"Queue",
 				"Semaphore",
-			],
-			swiftSettings: settings),
+			]
+		),
 		.testTarget(
 			name: "LanguageClientTests",
-			dependencies: ["LanguageClient"],
-			swiftSettings: settings)
+			dependencies: ["LanguageClient"]
+		)
 	]
 )
+
+let swiftSettings: [SwiftSetting] = [
+	.enableExperimentalFeature("StrictConcurrency")
+]
+
+for target in package.targets {
+	var settings = target.swiftSettings ?? []
+	settings.append(contentsOf: swiftSettings)
+	target.swiftSettings = settings
+}

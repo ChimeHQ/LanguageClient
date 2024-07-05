@@ -10,15 +10,6 @@
       }
     },
     {
-      "identity" : "globpattern",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/ChimeHQ/GlobPattern",
-      "state" : {
-        "revision" : "4ebb9e89e07cc475efa74f87dc6d21f4a9e060f8",
-        "version" : "0.1.1"
-      }
-    },
-    {
       "identity" : "jsonrpc",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/ChimeHQ/JSONRPC",
@@ -32,8 +23,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/ChimeHQ/LanguageServerProtocol",
       "state" : {
-        "revision" : "f5a53e0386b34a0e06333ec9376f5972f7d20c28",
-        "version" : "0.13.0"
+        "revision" : "ac76fccf0e981c8e30c5ee4de1b15adc1decd697",
+        "version" : "0.13.2"
       }
     },
     {
@@ -61,6 +52,14 @@
       "state" : {
         "revision" : "f1c4a0acabeb591068dea6cffdd39660b86dec28",
         "version" : "0.0.8"
+      }
+    },
+    {
+      "identity" : "swift-glob",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/davbeck/swift-glob",
+      "state" : {
+        "revision" : "6b93163b2db5ac639eeb274c473f16f5a6dd8a95"
       }
     }
   ],

@@ -35,7 +35,7 @@ public actor InitializingServer {
 				}
 			}
 			set {
-				guard let caps = newValue else {
+				guard let _ = newValue else {
 					fatalError()
 				}
 

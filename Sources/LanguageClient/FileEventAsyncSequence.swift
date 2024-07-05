@@ -1,9 +1,9 @@
 import Foundation
 import LanguageServerProtocol
 
-#if canImport(FSEventsWrapper) && canImport(GlobPattern)
+#if canImport(FSEventsWrapper)
 import FSEventsWrapper
-import GlobPattern
+import Glob
 
 extension FSEvent {
 	var pathTypePair: (String, FileChangeType)? {
@@ -103,7 +103,9 @@ public struct FileEventAsyncSequence: AsyncSequence {
 
 	public init(watcher: FileSystemWatcher, root: URL, filterInProcessChanges: Bool = true) throws {
 		self.kind = watcher.kind ?? []
-		self.pattern = try Glob.Pattern(watcher.globPattern, mode: .grouping)
+		// Options will have to be tweaked eventually to match what LSP actually supports.
+		// But this is a good start.
+		self.pattern = try Glob.Pattern(watcher.globPattern, options: .default)
 		self.root = root
 		self.filterInProcessChanges = filterInProcessChanges
 	}
