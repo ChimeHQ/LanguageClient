@@ -19,7 +19,7 @@ let package = Package(
 	dependencies: [
 		.package(url: "https://github.com/ChimeHQ/LanguageServerProtocol", from: "0.13.2"),
 		.package(url: "https://github.com/Frizlab/FSEventsWrapper", from: "2.1.0"),
-		.package(url: "https://github.com/davbeck/swift-glob", revision: "6b93163b2db5ac639eeb274c473f16f5a6dd8a95"),
+		.package(url: "https://github.com/davbeck/swift-glob", from: "0.0.0"),
 		.package(url: "https://github.com/ChimeHQ/JSONRPC", from: "0.9.0"),
 		.package(url: "https://github.com/ChimeHQ/ProcessEnv", from: "1.0.0"),
 		.package(url: "https://github.com/groue/Semaphore", from: "0.0.8"),

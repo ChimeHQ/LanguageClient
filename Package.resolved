@@ -59,7 +59,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/davbeck/swift-glob",
       "state" : {
-        "revision" : "6b93163b2db5ac639eeb274c473f16f5a6dd8a95"
+        "revision" : "f6a5c1cb5449388dd237b335cad9d3cdd083b93a",
+        "version" : "0.0.0"
       }
     }
   ],
