@@ -11,6 +11,14 @@ extension DataChannel {
 		parameters: Process.ExecutionParameters,
 		terminationHandler: @escaping @Sendable () -> Void
 	) throws -> DataChannel {
+		try localProcessChannel(parameters: parameters, terminationHandler: terminationHandler).channel
+	}
+
+	@available(macOS 12.0, *)
+	public static func localProcessChannel(
+		parameters: Process.ExecutionParameters,
+		terminationHandler: @escaping @Sendable () -> Void
+	) throws -> (channel: DataChannel, process: Process) {
 		let process = Process()
 
 		let stdinPipe = Pipe()
@@ -56,7 +64,7 @@ extension DataChannel {
 			try stdinPipe.fileHandleForWriting.write(contentsOf: $0)
 		}
 
-		return DataChannel(writeHandler: handler, dataSequence: stream)
+		return (DataChannel(writeHandler: handler, dataSequence: stream), process)
 	}
 }
 
