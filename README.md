@@ -11,6 +11,8 @@
 
 This is a Swift library for abstracting and interacting with language servers that implement the [Language Server Protocol](https://microsoft.github.io/language-server-protocol/). It is built on top of the [LanguageServerProtocol][languageserverprotocol] library.
 
+I've also been playing around with a mechanism for [inter-project server management](https://github.com/ChimeHQ/LanguageServerScripts) that might be interesting as well.
+
 ## General Design
 
 This library is all based around the `ServerConnection` protocol from LanguageServerProtocol. The idea is to wrap up and expose progressively more-complex behavior. This helps to keep things manageable, while also offering lower-complexity types for less-demanding needs. It was also just the first thing I tried that worked out reasonably well.
