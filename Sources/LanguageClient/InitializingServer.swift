@@ -3,13 +3,20 @@ import Foundation
 import os.log
 #endif
 
-import Semaphore
+import JSONRPC
 import LanguageServerProtocol
+import Semaphore
 
 enum InitializingServerError: Error {
 	case noStateProvider
 	case capabilitiesUnavailable
 	case stateInvalid
+}
+
+extension AnyJSONRPCResponseError {
+	init(error: any Error) {
+		self.init(code: JSONRPCErrors.internalError, message: error.localizedDescription)
+	}
 }
 
 /// Server implementation that lazily initializes another Server on first message.
@@ -205,33 +212,47 @@ extension InitializingServer {
 		return initResponse
 	}
 
-	private func handleEvent(_ event: ServerEvent) {
+	private func handleEvent(_ event: ServerEvent) async {
 		switch event {
 		case let .request(_, request):
-			handleRequest(request)
+			await handleRequest(request)
 		default:
 			break
 		}
 	}
 
-	private func handleRequest(_ request: ServerRequest) {
+	private func handleRequest(_ request: ServerRequest) async {
 		guard case .initialized(let initResp) = self.state else {
 			fatalError("received a request without being initialized")
 		}
 
 		var newCaps = initResp.capabilities
 
-		do {
-			switch request {
-			case .clientRegisterCapability(let params, _):
+		switch request {
+		case let .clientRegisterCapability(params, handler):
+			do {
 				try newCaps.applyRegistrations(params.registrations)
-			case .clientUnregisterCapability(let params, _):
-				try newCaps.applyUnregistrations(params.unregistrations)
-			default:
-				break
+
+				await handler(nil)
+			} catch {
+				print("failed to process clientRegisterCapability: \(error)")
+
+				await handler(AnyJSONRPCResponseError(error: error))
 			}
-		} catch {
-			print("unable to mutate server capabilities: \(error)")
+		case let .clientUnregisterCapability(params, handler):
+			do {
+				try newCaps.applyUnregistrations(params.unregistrations)
+
+				await handler(nil)
+			} catch {
+				print("failed to process clientUnregisterCapability: \(error)")
+
+				await handler(AnyJSONRPCResponseError(error: error))
+			}
+		default:
+			print("unhandled request: \(request)")
+
+			await request.relyWithError(InitializingServerError.stateInvalid)
 		}
 
 		if initResp.capabilities != newCaps {

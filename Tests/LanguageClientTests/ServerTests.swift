@@ -78,11 +78,14 @@ final class ServerTests: XCTestCase {
 			Registration(id: "abc", method: ClientRequest.Method.textDocumentSemanticTokens.rawValue, registerOptions: options)
 		])
 
-		await mockChannel.sendMockRequest(.clientRegisterCapability(params, { _ in }))
+		let registerExp = expectation(description: "registration handled")
+		await mockChannel.sendMockRequest(.clientRegisterCapability(params, { _ in registerExp.fulfill() }))
 
 		let caps2 = await iterator.next()
 
 		XCTAssertNotNil(caps2?.semanticTokensProvider)
+
+		await fulfillment(of: [registerExp], timeout: 1.0)
 	}
 }
 #endif
