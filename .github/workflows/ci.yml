@@ -4,32 +4,55 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'README.md'
+      - 'CODE_OF_CONDUCT.md'
+      - '.editorconfig'
+      - '.spi.yml'
   pull_request:
     branches:
-      - '**'
+      - main
 
-env:
-  DEVELOPER_DIR: /Applications/Xcode_15.0.app/Contents/Developer
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  apple_test:
+  test:
     name: Test
-    runs-on: macOS-13
+    runs-on: macOS-15
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.3.app
     strategy:
       matrix:
         destination:
           - "platform=macOS"
-          - "platform=iOS Simulator,name=iPhone 12"
-
+          - "platform=macOS,variant=Mac Catalyst"
+          - "platform=iOS Simulator,name=iPhone 16"
+          - "platform=tvOS Simulator,name=Apple TV"
+          - "platform=watchOS Simulator,name=Apple Watch Series 10 (42mm)"
+          - "platform=visionOS Simulator,name=Apple Vision Pro"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Test platform ${{ matrix.destination }}
-        run: set -o pipefail && xcodebuild -scheme LanguageClient -destination "${{ matrix.destination }}" test | xcpretty
+        run: set -o pipefail && xcodebuild -scheme LanguageClient -destination "${{ matrix.destination }}" test | xcbeautify
 
   linux_test:
     name: Test Linux
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        swift-version:
+          - 6.0.3
+          - 6.1
     steps:
-      - uses: actions/checkout@v3
-      - name: swift test
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Swiftly
+        uses: vapor/swiftly-action@v0.2.0
+        with:
+          toolchain: ${{ matrix.swift-version }}
+      - name: Test
         run: swift test
