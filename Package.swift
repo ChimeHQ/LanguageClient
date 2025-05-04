@@ -6,7 +6,7 @@ let package = Package(
 	name: "LanguageClient",
 	platforms: [
 		.macOS(.v11),
-		.macCatalyst(.v13),
+		.macCatalyst(.v14),
 		.iOS(.v14),
 		.tvOS(.v14),
 		.watchOS(.v7)
