@@ -87,5 +87,49 @@ final class ServerTests: XCTestCase {
 
 		await fulfillment(of: [registerExp], timeout: 1.0)
 	}
+
+	func testPassesRequestsThrough() async throws {
+		let mockChannel = MockServer()
+		let config = Server.Configuration(
+			serverProvider: { mockChannel },
+			textDocumentItemProvider: { _ in throw ServerTestError.unsupported },
+			initializeParamsProvider: { Self.initParams }
+		)
+		let server = Server(configuration: config)
+
+		let mockRequest = ServerRequest.windowWorkDoneProgressCreate(
+			WorkDoneProgressCreateParams(token: .optionA(1)),
+			{ error in
+				if let error {
+					print(error)
+				}
+
+				XCTFail()
+			}
+		)
+
+		await mockChannel.sendMockResponse(
+"""
+{"capabilities": {"textDocumentSync": 0}}
+"""
+		)
+		_ = try await server.initializeIfNeeded()
+
+		var iterator = server.eventSequence.makeAsyncIterator()
+
+		print("sending")
+		await mockChannel.sendMockRequest(mockRequest)
+
+		print("waiting")
+		let event = await iterator.next()
+
+		guard
+			case let .request(_, request) = event,
+			case .windowWorkDoneProgressCreate = request
+		else {
+			XCTFail()
+			return
+		}
+	}
 }
 #endif

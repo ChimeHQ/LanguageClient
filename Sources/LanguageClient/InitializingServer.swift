@@ -250,9 +250,7 @@ extension InitializingServer {
 				await handler(AnyJSONRPCResponseError(error: error))
 			}
 		default:
-			print("unhandled request: \(request)")
-
-			await request.relyWithError(InitializingServerError.stateInvalid)
+			break
 		}
 
 		if initResp.capabilities != newCaps {
