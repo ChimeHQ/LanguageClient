@@ -42,7 +42,6 @@ extension DataChannel {
 			let dataStream = stdoutPipe.fileHandleForReading.dataStream
 
 			for try await data in dataStream {
-				print("read:", String(decoding: data, as: UTF8.self))
 				continuation.yield(data)
 			}
 
@@ -61,8 +60,6 @@ extension DataChannel {
 			// this is wacky, but we need the channel to hold a strong reference to the process
 			// to prevent it from being deallocated
 			_ = process
-
-			print("write:", String(decoding: $0, as: UTF8.self))
 
 			try stdinPipe.fileHandleForWriting.write(contentsOf: $0)
 		}
